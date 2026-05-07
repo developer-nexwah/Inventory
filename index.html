@@ -365,6 +365,7 @@
  <div style="display:flex;gap:8px;flex-wrap:wrap">
  <button class="btn btn-primary btn-sm" onclick="openNewPartDrawer()">+ Add New Part</button>
  <button class="btn btn-secondary btn-sm" onclick="exportInventoryCSV()">Export CSV</button>
+ <button class="btn btn-secondary btn-sm" onclick="fixMissingRowSerials()">Fix Missing Row Serials</button>
  <button class="btn btn-danger btn-sm" onclick="confirmClear()">Clear All Data</button>
  </div>
  </div>
@@ -375,8 +376,8 @@
  </div>
  <div class="table-wrap" id="invResultsWrap" style="display:none">
  <table>
- <thead><tr><th>Mfr Part Number</th><th>Supplier PN</th><th>Supplier</th><th>Description</th><th>Nexwah PN</th><th>Quantity</th><th>Actions</th></tr></thead>
- <tbody id="invTableBody"><tr><td colspan="7" class="empty-state">Type in the search box to find inventory items.</td></tr></tbody>
+ <thead><tr><th>Mfr Part Number</th><th>Description</th><th>Location</th><th>Row</th><th>Quantity</th><th>Actions</th></tr></thead>
+ <tbody id="invTableBody"><tr><td colspan="6" class="empty-state">Type in the search box to find inventory items.</td></tr></tbody>
  </table>
  </div>
  </div>
@@ -952,29 +953,111 @@ let locFilter = 'all';
 
 function pad2(n) { return String(n); }
 function getCapacity(locId) { return locCapacity[locId] || 100; }
+function isFullSlotLabel(value) { return /^[A-Za-z0-9]+-\d+$/.test(String(value||'').trim()); }
+function getBaseLocationId(value) { return String(value||'').trim().replace(/-\d+$/, '').toUpperCase(); }
+function getSlotNumber(value) {
+  const m = String(value||'').trim().match(/-(\d+)$/);
+  return m ? parseInt(m[1], 10) : null;
+}
+function isKnownLocationBox(value) {
+  const id = getBaseLocationId(value);
+  return !!LOCATIONS.find(l => l.id.toUpperCase() === id);
+}
+function getNextFreeSlotFromSet(locId, usedSet) {
+  const cap = getCapacity(locId);
+  for (let i = 1; i <= cap; i++) { if (!usedSet.has(i)) return i; }
+  let n = cap + 1;
+  while (usedSet.has(n)) n++;
+  return n;
+}
 function getNextSlot(locId) {
   const used = locSlots[locId] || [];
-  const cap = getCapacity(locId);
-  for (let i=1; i<=cap; i++) { if (!used.includes(i)) return i; }
-  return cap + 1; // allow beyond capacity
+  const usedSet = new Set(used);
+  return getNextFreeSlotFromSet(locId, usedSet);
 }
 function isFull(locId) { return false; } // never hard-block — capacity is a soft limit
 function usedCount(locId) { return (locSlots[locId]||[]).length; }
 function slotLabel(locId, n) { return `${locId}-${pad2(n)}`; }
 
-// Assigns next available slot for a location and returns the full slot label e.g. "PB1-3"
-// If locId is already a full slot label (e.g. "PB1-3"), returns it as-is
+// Builds a rowIndex -> full Row serial map.
+// Google Sheet columns are:
+// Timestamp | ID | PartNumber | Description | Quantity | Location | Row | NexwahPN | Source | Cost | Stock Level | Image | Memo
+// Location = box only, e.g. PB22.
+// Row = serial slot, e.g. PB22-14.
+function getSheetLocation(row) {
+  return String((row && row[5]) || '').trim();
+}
+function getSheetRowSerial(row) {
+  return String((row && row[6]) || '').trim();
+}
+function makeInventoryRow({mfrPn, desc, qty, box, rowSerial, source='', memo=''}) {
+  const today = todayStr();
+  const cleanBox = getBaseLocationId(box || rowSerial || '');
+  const cleanRow = rowSerial || '';
+  return [today, '', mfrPn || '', desc || '', qty || 0, cleanBox, cleanRow, '', source || '', '', '', '', memo || ''];
+}
+
+function buildEffectiveLocationMap(rows) {
+  const map = {};
+  const usedByBox = {};
+  LOCATIONS.forEach(l => { usedByBox[l.id] = new Set(); });
+
+  // First reserve Row column values already in the sheet.
+  rows.slice(1).forEach((row, idx) => {
+    const rowIndex = idx + 2;
+    const rowSerial = getSheetRowSerial(row);
+    const locRaw = getSheetLocation(row);
+    const serial = isFullSlotLabel(rowSerial) ? rowSerial : (isFullSlotLabel(locRaw) ? locRaw : '');
+    if (!serial) return;
+    const boxId = getBaseLocationId(serial);
+    const slotNum = getSlotNumber(serial);
+    if (!usedByBox[boxId]) usedByBox[boxId] = new Set();
+    if (slotNum) usedByBox[boxId].add(slotNum);
+    map[rowIndex] = `${boxId}-${slotNum}`;
+  });
+
+  // Then assign display-only serials to old plain box entries that have no Row value.
+  rows.slice(1).forEach((row, idx) => {
+    const rowIndex = idx + 2;
+    if (map[rowIndex]) return;
+    const locRaw = getSheetLocation(row);
+    if (!locRaw) return;
+    const boxId = getBaseLocationId(locRaw);
+    if (!isKnownLocationBox(boxId)) {
+      map[rowIndex] = locRaw;
+      return;
+    }
+    if (!usedByBox[boxId]) usedByBox[boxId] = new Set();
+    const next = getNextFreeSlotFromSet(boxId, usedByBox[boxId]);
+    usedByBox[boxId].add(next);
+    map[rowIndex] = slotLabel(boxId, next);
+  });
+
+  return map;
+}
+
+function getEffectiveLocation(row, rowIndex) {
+  if (_effectiveLocationMap && _effectiveLocationMap[rowIndex]) return _effectiveLocationMap[rowIndex];
+  const rowSerial = getSheetRowSerial(row);
+  if (isFullSlotLabel(rowSerial)) return `${getBaseLocationId(rowSerial)}-${getSlotNumber(rowSerial)}`;
+  const loc = getSheetLocation(row);
+  if (!loc) return '';
+  if (isFullSlotLabel(loc)) return `${getBaseLocationId(loc)}-${getSlotNumber(loc)}`;
+  return loc;
+}
+
+// Assigns next available slot for a location and returns the full slot label e.g. "PB12-14"
+// If locId is already a full slot label, returns it as-is.
 function claimNextSlot(locId) {
   if (!locId) return "";
-  // If already a slot label like PB1-3, return as-is
-  if (/^.+-\d+$/.test(locId)) return locId;
-  // Check if location exists
-  const loc = LOCATIONS.find(l => l.id === locId);
+  if (isFullSlotLabel(locId)) return `${getBaseLocationId(locId)}-${getSlotNumber(locId)}`;
+  const normalized = getBaseLocationId(locId);
+  const loc = LOCATIONS.find(l => l.id.toUpperCase() === normalized);
   if (!loc) return locId; // unknown location, save as-is
-  if (!locSlots[locId]) locSlots[locId] = [];
-  const next = getNextSlot(locId);
-  locSlots[locId].push(next);
-  return slotLabel(locId, next);
+  if (!locSlots[normalized]) locSlots[normalized] = [];
+  const next = getNextSlot(normalized);
+  locSlots[normalized].push(next);
+  return slotLabel(normalized, next);
 }
 
 // Populate all location dropdowns across the app
@@ -1383,33 +1466,18 @@ async function sheetRead() {
 }
 
 function syncLocSlotsFromSheet(rows) {
-  // Reset all slots first
   LOCATIONS.forEach(l => { locSlots[l.id] = []; });
-  // Track plain box usage counts for locations without slot numbers
-  const plainBoxCount = {};
-  rows.slice(1).forEach(row => {
-    const loc = String(row[5]||"").trim();
-    if (!loc) return;
-    // Match slot label like PB1-3
-    const m = loc.match(/^([A-Za-z0-9]+)-(\d+)$/);
-    if (m) {
-      const locId = m[1].toUpperCase();
-      const slotNum = parseInt(m[2]);
-      if (!locSlots[locId]) locSlots[locId] = [];
-      if (!locSlots[locId].includes(slotNum)) locSlots[locId].push(slotNum);
-    } else {
-      // Plain box like "PB0" — count it so next slot starts after existing entries
-      const locId = loc.toUpperCase();
-      plainBoxCount[locId] = (plainBoxCount[locId]||0) + 1;
-    }
+  _effectiveLocationMap = buildEffectiveLocationMap(rows);
+
+  Object.values(_effectiveLocationMap).forEach(loc => {
+    if (!isFullSlotLabel(loc)) return;
+    const boxId = getBaseLocationId(loc);
+    const slotNum = getSlotNumber(loc);
+    if (!locSlots[boxId]) locSlots[boxId] = [];
+    if (slotNum && !locSlots[boxId].includes(slotNum)) locSlots[boxId].push(slotNum);
   });
-  // For plain box entries, fill slots 1..N so next slot is N+1
-  Object.entries(plainBoxCount).forEach(([locId, count]) => {
-    if (!locSlots[locId]) locSlots[locId] = [];
-    for (let i = 1; i <= count; i++) {
-      if (!locSlots[locId].includes(i)) locSlots[locId].push(i);
-    }
-  });
+
+  Object.keys(locSlots).forEach(k => locSlots[k].sort((a,b)=>a-b));
 }
 async function sheetAppend(row) { const url=`${APPS_SCRIPT_URL}?action=append&sheet=${encodeURIComponent(cfg.sheetName||"Sheet1")}&row=${encodeURIComponent(JSON.stringify(row))}`; const resp=await fetch(url); return await resp.text(); }
 async function sheetUpdate(rowIndex,qty,date) { const url=`${APPS_SCRIPT_URL}?action=update&sheet=${encodeURIComponent(cfg.sheetName||"Sheet1")}&rowIndex=${rowIndex}&qty=${qty}&date=${encodeURIComponent(date)}`; const resp=await fetch(url); return await resp.text(); }
@@ -1418,17 +1486,23 @@ async function sheetUpdateLocation(rowIndex, location) {
   const resp = await fetch(url);
   return await resp.text();
 }
+async function sheetUpdateRowSerial(rowIndex, rowSerial) {
+  const url = `${APPS_SCRIPT_URL}?action=updateRowSerial&sheet=${encodeURIComponent(cfg.sheetName||"Sheet1")}&rowIndex=${rowIndex}&rowSerial=${encodeURIComponent(rowSerial)}`;
+  const resp = await fetch(url);
+  return await resp.text();
+}
 async function sheetAppendTx(row) { const url=`${APPS_SCRIPT_URL}?action=append&sheet=Transactions&row=${encodeURIComponent(JSON.stringify(row))}`; await fetch(url); }
 
 // INVENTORY
 function escQ(s) { return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
 let _invCache = null; // cache last successful sheet data
+let _effectiveLocationMap = {}; // rowIndex -> displayed/full Row serial
 
 // Called on page load, tab switch, and after stock updates — fetches from sheet
 async function renderInventory() {
   const tbody = document.getElementById("invTableBody");
   if (!_invCache) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><span class="spinner"></span>Loading\u2026</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><span class="spinner"></span>Loading\u2026</td></tr>`;
   }
   try {
     const rows = await sheetRead();
@@ -1439,7 +1513,7 @@ async function renderInventory() {
       _renderInvRows(tbody);
       toast("Showing cached data \u2014 could not reach Google Sheets.");
     } else {
-      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
         <div style="color:var(--error);font-weight:600;margin-bottom:6px">Could not connect to Google Sheets</div>
         <div style="color:var(--muted);font-size:12px">Check your internet connection and try again.</div>
         <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="renderInventory()">Retry</button>
@@ -1459,40 +1533,49 @@ function _renderInvRows(tbody) {
   const search = (document.getElementById("invSearch").value || "").trim().toUpperCase();
   const resultsWrap = document.getElementById("invResultsWrap");
 
-  // Keep the inventory list hidden until the user searches.
   if (!search) {
     if (resultsWrap) resultsWrap.style.display = "none";
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Type in the search box to find inventory items.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Type in the search box to find inventory items.</td></tr>`;
     return;
   }
 
   if (resultsWrap) resultsWrap.style.display = "block";
 
-  let data = _invCache.slice(1).map((r,i) => ({r, origIdx: i+2}));
-  data = data.filter(({r}) =>
-    r.some(cell => (cell||"").toString().toUpperCase().includes(search))
-  );
+  let data = _invCache.slice(1).map((r,i) => ({
+    r,
+    origIdx: i+2,
+    rowSerial: getEffectiveLocation(r, i+2),
+    boxLoc: getSheetLocation(r)
+  }));
+  data = data.filter(({r, rowSerial, boxLoc}) => {
+    const rawMatch = r.some(cell => (cell||"").toString().toUpperCase().includes(search));
+    const rowMatch = String(rowSerial||"").toUpperCase().includes(search);
+    const boxMatch = String(boxLoc||"").toUpperCase().includes(search);
+    return rawMatch || rowMatch || boxMatch;
+  });
   data.sort((a,b) => String(a.r[2]||"").localeCompare(String(b.r[2]||"")));
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No results found for "${search}".</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No results found for "${search}".</td></tr>`;
     return;
   }
-  tbody.innerHTML = data.map(({r,origIdx}) => {
+  tbody.innerHTML = data.map(({r,origIdx,rowSerial,boxLoc}) => {
     const qty=parseInt(r[4])||0; const low=qty<=5;
-    const mfrPn=escQ(r[2]||""); const suppPn=escQ(r[0]||""); const supplier=escQ(r[1]||"");
-    const desc=escQ(r[3]||""); const loc=escQ(r[5]||""); const updated=escQ(r[6]||"");
-    const nexwahPn = r[5] || getNexwahPnValue(r[2]||"", r[5]||"");
-    return `<tr class="${low?"low-stock ":""}inv-row-clickable" onclick="openDrawer(${origIdx},'${mfrPn}','${suppPn}','${supplier}','${desc}','${loc}',${qty},'${updated}')">
+    const mfrPn=escQ(r[2]||"");
+    const source=escQ(r[8]||"");
+    const desc=escQ(r[3]||"");
+    const box=escQ(boxLoc || getBaseLocationId(rowSerial) || "");
+    const rowVal=escQ(rowSerial || "");
+    const updated=escQ(r[0]||"");
+    return `<tr class="${low?"low-stock ":""}inv-row-clickable" onclick="openDrawer(${origIdx},'${mfrPn}','','${source}','${desc}','${box}','${rowVal}',${qty},'${updated}')">
       <td class="mono">${r[2]||"\u2014"}</td>
-      <td class="mono">${r[0]||"\u2014"}</td>
-      <td>${r[1]||"\u2014"}</td>
       <td>${r[3]||"\u2014"}</td>
-      <td class="mono">${nexwahPn||"\u2014"}</td>
+      <td class="mono">${boxLoc||"\u2014"}</td>
+      <td class="mono">${rowSerial||"\u2014"}</td>
       <td class="mono" style="font-weight:600${low?";color:var(--error)":""}">${qty}</td>
       <td onclick="event.stopPropagation()"><div class="quick-btns">
-        <button class="btn btn-success btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${supplier}',${qty},'Receive')">+</button>
-        <button class="btn btn-danger btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${supplier}',${qty},'Use')">\u2212</button>
-        <button class="btn btn-secondary btn-sm" onclick="printLabel('${mfrPn}','${suppPn}','${desc}','${loc}','${qty}')">Print</button>
+        <button class="btn btn-success btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${source}',${qty},'Receive')">+</button>
+        <button class="btn btn-danger btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${source}',${qty},'Use')">\u2212</button>
+        <button class="btn btn-secondary btn-sm" onclick="printLabel('${mfrPn}','','${desc}','${rowVal}',${qty})">Print</button>
         <button class="btn btn-danger btn-sm" onclick="deleteInventoryRow(${origIdx},'${mfrPn}')">Remove</button>
       </div></td>
     </tr>`;
@@ -1524,50 +1607,46 @@ async function deleteInventoryRow(rowIdx, mfrPn) {
 }
 
 // DRAWER 
-function getNexwahPnValue(mfrPn, location) {
+function getNexwahPnValue(mfrPn, location, rowSerial) {
+ const row = (rowSerial || "").trim();
+ if (/^[A-Za-z0-9]+-\d+$/.test(row)) return row;
  const loc = (location || "").trim();
- const pn = (mfrPn || "").trim();
  if (/^[A-Za-z0-9]+-\d+$/.test(loc)) return loc;
- if (/^[A-Za-z0-9]+-\d+$/.test(pn)) return pn;
  return "\u2014";
 }
-function renderDrawerInfo(mfrPn, desc, qty, location) {
+function renderDrawerInfo(mfrPn, desc, qty, location, rowSerial) {
  const displayLoc = location || "\u2014";
- const nexwahPn = getNexwahPnValue(mfrPn, location);
+ const displayRow = rowSerial || "\u2014";
  return [
    ["Mfr PN", mfrPn || "\u2014"],
    ["Description", desc || "\u2014"],
    ["Quantity", `${qty || 0} units`],
    ["Location", displayLoc],
-   ["Nexwah PN", nexwahPn]
+   ["Row", displayRow]
  ].map(([label,val])=>`<div class="info-row"><div class="info-label">${label}</div><div class="info-value">${val}</div></div>`).join("");
 }
-function openDrawer(rowIdx,mfrPn,suppPn,supplier,desc,location,qty,lastUpdated) {
- drawerRowData={rowIdx,mfrPn,suppPn,supplier,desc,location,qty,lastUpdated};
+function openDrawer(rowIdx,mfrPn,suppPn,supplier,desc,location,rowSerial,qty,lastUpdated) {
+ drawerRowData={rowIdx,mfrPn,suppPn,supplier,desc,location,rowSerial,qty,lastUpdated};
  document.getElementById("drawerMfrPn").textContent=mfrPn||"\u2014";
  document.getElementById("drawerDesc").textContent=desc||"No description";
  const pill=document.getElementById("drawerStockPill");
  if (qty<=0){pill.className="stock-pill empty";pill.textContent=`0 units \u2014 out of stock`;}
  else if (qty<=5){pill.className="stock-pill low";pill.textContent=`${qty} units \u2014 low stock`;}
  else{pill.className="stock-pill ok";pill.textContent=`${qty} units in stock`;}
- // Show location — if it's just a box, show what slot it would get
- const hasSlot = /^[A-Za-z0-9]+-\d+$/.test(location);
- const boxId = hasSlot ? location.replace(/-\d+$/,"").toUpperCase() : location.toUpperCase();
- const displayLoc = hasSlot ? location : (location && LOCATIONS.find(l=>l.id===boxId) ? slotLabel(boxId, getNextSlot(boxId)) : location||"\u2014");
- document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(mfrPn, desc, qty, displayLoc);
+ const displayLoc = location || (rowSerial ? getBaseLocationId(rowSerial) : "");
+ document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(mfrPn, desc, qty, displayLoc, rowSerial);
  document.getElementById("drawerQty").value="1"; document.getElementById("drawerNotes").value="";
  const s=document.getElementById("drawerStatus"); s.style.display="none";
  const ls=document.getElementById("drawerLocationStatus"); ls.style.display="none";
- // Populate location dropdown — show next slot for each box
  const locSel = document.getElementById("drawerLocationSelect");
  locSel.innerHTML = '<option value="">— not assigned —</option>';
+ const currentBox = displayLoc ? getBaseLocationId(displayLoc) : "";
  LOCATIONS.forEach(loc => {
    const opt = document.createElement('option');
    opt.value = loc.id;
    const next = getNextSlot(loc.id);
-   opt.textContent = loc.id + (loc.name ? ' · ' + loc.name : '') + ' — next: ' + slotLabel(loc.id, next);
-   // Select the box that matches the current location
-   if (loc.id === boxId) opt.selected = true;
+   opt.textContent = loc.id + (loc.name ? ' · ' + loc.name : '') + ' — next row: ' + slotLabel(loc.id, next);
+   if (loc.id === currentBox) opt.selected = true;
    locSel.appendChild(opt);
  });
  setDrawerAction("Receive");
@@ -1582,13 +1661,15 @@ async function saveDrawerLocation() {
  const statusEl = document.getElementById("drawerLocationStatus");
  statusEl.style.display="block"; statusEl.innerHTML='<span class="spinner"></span>Saving\u2026'; statusEl.className="status-bar loading";
  try {
-   // Always save with slot number
-   const finalLocation = boxId ? claimNextSlot(boxId) : "";
-   await sheetUpdateLocation(drawerRowData.rowIdx, finalLocation);
-   drawerRowData.location = finalLocation;
-   document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(drawerRowData.mfrPn, drawerRowData.desc, drawerRowData.qty, finalLocation||"\u2014");
-   statusEl.innerHTML=`\u2713 Location saved: ${finalLocation||"(none)"}`;statusEl.className="status-bar ok";
-   toast("Location updated: " + (finalLocation||"cleared"));
+   const rowSerial = boxId ? claimNextSlot(boxId) : "";
+   const box = rowSerial ? getBaseLocationId(rowSerial) : "";
+   await sheetUpdateLocation(drawerRowData.rowIdx, box);
+   try { await sheetUpdateRowSerial(drawerRowData.rowIdx, rowSerial); } catch(e) { console.warn("Row serial update failed:", e); }
+   drawerRowData.location = box;
+   drawerRowData.rowSerial = rowSerial;
+   document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(drawerRowData.mfrPn, drawerRowData.desc, drawerRowData.qty, box||"\u2014", rowSerial||"\u2014");
+   statusEl.innerHTML=`\u2713 Location saved: ${box||"(none)"} / Row: ${rowSerial||"(none)"}`;statusEl.className="status-bar ok";
+   toast("Location updated: " + (rowSerial||"cleared"));
    _invCache = null;
    renderInventory();
  } catch(e) {
@@ -1619,11 +1700,11 @@ async function submitDrawerUpdate() {
  if (newQty<=0){pill.className="stock-pill empty";pill.textContent=`0 units \u2014 out of stock`;}
  else if (newQty<=5){pill.className="stock-pill low";pill.textContent=`${newQty} units \u2014 low stock`;}
  else{pill.className="stock-pill ok";pill.textContent=`${newQty} units in stock`;}
- document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(drawerRowData.mfrPn, drawerRowData.desc, newQty, drawerRowData.location||"\u2014");
+ document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(drawerRowData.mfrPn, drawerRowData.desc, newQty, drawerRowData.location||"\u2014", drawerRowData.rowSerial||"\u2014");
  renderInventory();
  } catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}
 }
-function drawerPrintLabel() { if (!drawerRowData) return; const {mfrPn,suppPn,desc,location,qty}=drawerRowData; printLabel(mfrPn,suppPn,desc,location,qty); }
+function drawerPrintLabel() { if (!drawerRowData) return; const {mfrPn,desc,rowSerial,qty}=drawerRowData; printLabel(mfrPn,"",desc,rowSerial,qty); }
 
 // ADD NEW PART 
 function openNewPartDrawer() {
@@ -1657,7 +1738,8 @@ async function submitNewPart() {
      toast(`Updated: ${mfrPn} \u2192 ${newQty} units`);
    } else {
      const finalLocation=location?claimNextSlot(location):(await autoAssignLocation())||"";
-     const row=[suppPn,supplier,mfrPn,desc,qty,finalLocation,today]; const res=await sheetAppend(row);
+     const finalBox=getBaseLocationId(finalLocation);
+     const row=makeInventoryRow({mfrPn, desc, qty, box:finalBox, rowSerial:finalLocation, source:supplier, memo:notes||"New part added"}); const res=await sheetAppend(row);
      if (res.trim()!=="ok") throw new Error(res);
      await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,0,qty,notes||"New part added"]);
      statusEl.innerHTML=`\u2713 Added ${mfrPn} \u00d7 ${qty} at ${finalLocation||"no location"}`;statusEl.className="status-bar ok";
@@ -1767,7 +1849,7 @@ async function confirmTaobaoReceive() {
     const finalBoxId = boxId || (() => { for (const loc of LOCATIONS) { if (loc.type==='PB') return loc.id; } return 'PB1'; })();
     const nexwahPn = claimNextSlot(finalBoxId);
 
-    const row = ["", supplier, mfrPn, desc, qty, nexwahPn, today];
+    const row = makeInventoryRow({mfrPn, desc, qty, box:getBaseLocationId(nexwahPn), rowSerial:nexwahPn, source:supplier, memo:notes||`Nexwah PN ${nexwahPn}`});
     const res = await sheetAppend(row);
     if (res.trim() !== "ok") throw new Error(res);
     await sheetAppendTx([today, mfrPn, supplier, "Receive", qty, 0, qty, notes||`Nexwah PN ${nexwahPn}`]);
@@ -1960,7 +2042,7 @@ function updateDispatchPreview(currentQty) {
 }
 async function confirmScanDispatch(rowIdx,currentQty){const qty=parseInt(document.getElementById("dispatchQty").value)||0;const notes=document.getElementById("dispatchNotes").value.trim();const statusEl=document.getElementById("scanDispatchStatus");if(qty<=0||qty>currentQty){statusEl.style.display="block";statusEl.innerHTML=`Enter 1\u2013${currentQty}`;statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing\u2026';statusEl.className="status-bar loading";const newQty=currentQty-qty;const today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Use",qty,currentQty,newQty,notes||"Scan dispatch"]);statusEl.innerHTML=`\u2713 Dispatched ${qty}. Remaining: ${newQty}`;statusEl.className="status-bar ok";toast(`Dispatched ${qty} \u00d7 ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 async function confirmScanReceiveExisting(rowIdx,currentQty,boxId,existingLoc){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");if(qty<=0){statusEl.style.display="block";statusEl.innerHTML="Enter qty \u2265 1";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing\u2026';statusEl.className="status-bar loading";const newQty=currentQty+qty;const today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);// Only assign a slot if the part has NO location yet
-if(!existingLoc&&boxId&&LOCATIONS.find(l=>l.id===boxId)){const slot=claimNextSlot(boxId);await sheetUpdateLocation(rowIdx,slot);}const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,currentQty,newQty,notes||"Scan receive"]);statusEl.innerHTML=`\u2713 Received ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Received ${qty} \u00d7 ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
+if(!existingLoc&&boxId&&LOCATIONS.find(l=>l.id===boxId)){const slot=claimNextSlot(boxId);await sheetUpdateLocation(rowIdx,getBaseLocationId(slot));try{await sheetUpdateRowSerial(rowIdx,slot);}catch(e){console.warn("Row serial update failed:",e);}}const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,currentQty,newQty,notes||"Scan receive"]);statusEl.innerHTML=`\u2713 Received ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Received ${qty} \u00d7 ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 async function confirmScanReceiveNew(){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");const mfrPn=document.getElementById("scanMfrPn").value.trim();const suppPn="";const desc=document.getElementById("scanDesc").value.trim();const locationSel=document.getElementById("scanLocation");const locId=locationSel?locationSel.value.trim():"";const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";if(!mfrPn||qty<=0){statusEl.style.display="block";statusEl.innerHTML="Part number and qty required";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Adding\u2026';statusEl.className="status-bar loading";const today=todayStr();try{
   // Check if part already exists to prevent duplicates
   const rows=await sheetRead();
@@ -1977,7 +2059,7 @@ async function confirmScanReceiveNew(){const qty=parseInt(document.getElementByI
   } else {
     // Truly new part — append new row with slot
     const finalLocation=locId?claimNextSlot(locId):(await autoAssignLocation())||"";
-    const row=["",supplier,mfrPn,desc,qty,finalLocation,today];const res=await sheetAppend(row);
+    const row=makeInventoryRow({mfrPn, desc, qty, box:getBaseLocationId(finalLocation), rowSerial:finalLocation, source:supplier, memo:notes||"Scan receive new"});const res=await sheetAppend(row);
     if(res.trim()!=="ok")throw new Error(res);
     await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,0,qty,notes||"Scan receive new"]);
     _invCache=null;
@@ -2322,7 +2404,7 @@ async function confirmBulkReceive(){
           if(sel && sel.value) finalLoc = claimNextSlot(sel.value);
           else finalLoc = claimNextSlot(item.finalLocation)||item.finalLocation;
         }
-        const row=[item.supplierPn,item.supplier,item.mfrPn,item.desc,item.qty,finalLoc,today];
+        const row=makeInventoryRow({mfrPn:item.mfrPn, desc:item.desc, qty:item.qty, box:getBaseLocationId(finalLoc), rowSerial:finalLoc, source:item.supplier, memo:"Bulk receive"});
         await sheetAppend(row);
         await sheetAppendTx([today,item.mfrPn,item.supplier,"Receive",item.qty,0,item.qty,"Bulk receive"]);
       }else{
@@ -2346,6 +2428,36 @@ function downloadBulkSampleCSV(){downloadFile("sample_bulk_receive.csv","text/cs
 
 // MISC 
 async function confirmClear(){if(!confirm("This will delete ALL inventory and transaction data from Google Sheets. Are you sure?"))return;if(!confirm("SECOND CONFIRMATION: This cannot be undone. Proceed?"))return;toast("Clear not implemented — manage data in Google Sheets directly for safety.");}
+
+async function fixMissingRowSerials() {
+  if (!confirm("This will fill missing Row serials for display and, if your Apps Script supports updateRowSerial, write them to the Row column. Continue?")) return;
+  try {
+    toast("Fixing missing Row serials…");
+    const rows = await sheetRead();
+    const effectiveMap = buildEffectiveLocationMap(rows);
+    let count = 0;
+
+    for (let i = 1; i < rows.length; i++) {
+      const rowIndex = i + 1;
+      const currentRow = getSheetRowSerial(rows[i]);
+      const box = getSheetLocation(rows[i]);
+      const fixedRow = effectiveMap[rowIndex] || currentRow;
+      if (!box || !fixedRow || currentRow === fixedRow) continue;
+      if (!isKnownLocationBox(box) || !isFullSlotLabel(fixedRow)) continue;
+      try { await sheetUpdateRowSerial(rowIndex, fixedRow); } catch(e) { console.warn("Could not write Row serial", rowIndex, e); }
+      rows[i][6] = fixedRow;
+      count++;
+    }
+
+    _invCache = null;
+    toast(`Prepared ${count} missing Row serial(s).`);
+    await renderInventory();
+    populateAllLocationDropdowns();
+    renderLocations();
+  } catch(e) {
+    toast("Fix failed: " + e.message);
+  }
+}
 
 async function migrateLocationFormat() {
   if(!confirm("This will remove leading zeros from all location values in your sheet (e.g. PB00-01 → PB0-1, PB01-03 → PB1-3). Continue?")) return;
