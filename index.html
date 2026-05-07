@@ -71,7 +71,8 @@
  .search-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
  .search-bar input { flex: 1; min-width: 200px; padding: 9px 12px; border: 1px solid var(--border2); border-radius: 8px; font-size: 13px; font-family: var(--sans); outline: none; }
  .search-bar input:focus { border-color: var(--accent); }
- .scanner-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+ .scanner-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+ .scanner-layout > div { min-width: 0; }
  @media(max-width:700px){ .scanner-layout { grid-template-columns: 1fr; } }
  .video-wrap { position: relative; width: 100%; border-radius: 10px; overflow: hidden; background: #111; aspect-ratio: 4/3; border: 1px solid var(--border); }
  video { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -83,7 +84,7 @@
  .corner.bl { top:85%; left:10%; border-width:0 0 2px 2px; border-radius:0 0 0 4px; transform:translateY(-100%); }
  .corner.br { top:85%; left:90%; border-width:0 2px 2px 0; border-radius:0 0 4px 0; transform:translate(-100%,-100%); }
  canvas { display: none; }
- img.preview { width: 100%; border-radius: 8px; border: 1px solid var(--border); background: #f0f0f0; display: block; min-height: 80px; object-fit: contain; }
+ img.preview { width: 100%; max-width: 100%; height: auto; max-height: 320px; border-radius: 8px; border: 1px solid var(--border); background: #f0f0f0; display: block; min-height: 80px; object-fit: contain; }
  .preview-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 5px; }
  .result-pn { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--accent); letter-spacing: 1px; word-break: break-all; min-height: 30px; }
  .supplier-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; font-family: var(--mono); margin-top: 5px; }
@@ -246,22 +247,22 @@
  <!-- Location lookup panel (No MPN) -->
  <div id="locationLookupPanel" style="display:none">
    <div class="card" style="margin-bottom:0">
-     <div class="card-title" style="margin-bottom:4px">Register New Part (No MPN)</div>
+     <div class="card-title" style="margin-bottom:4px">Register Nexwah Part Number</div>
  
      <div style="display:flex;flex-direction:column;gap:12px">
        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+         <div class="field"><label>MF Part No. *</label><input type="text" id="taobaoMfrPn" placeholder="e.g. LSM6DS3TR-C" style="font-family:var(--mono)" /></div>
          <div class="field"><label>Description *</label><input type="text" id="taobaoDesc" placeholder="e.g. 10K Resistor 0402" /></div>
-         <div class="field"><label>Quantity *</label><input type="number" id="taobaoQty" min="1" value="1" style="font-family:var(--mono)" /></div>
        </div>
        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+         <div class="field"><label>Quantity *</label><input type="number" id="taobaoQty" min="1" value="1" style="font-family:var(--mono)" /></div>
          <div class="field"><label>Category / Box</label>
            <select id="taobaoBox" onchange="updateTaobaoNextPn()" style="font-family:var(--mono);font-size:12px">
              <option value="">— Auto-assign next available —</option>
            </select>
          </div>
-         <div class="field"><label>Supplier (optional)</label><input type="text" id="taobaoSupplier" placeholder="e.g. Local supplier" /></div>
        </div>
-       <div class="field"><label>Notes (optional)</label><input type="text" id="taobaoNotes" placeholder="e.g. Order notes" /></div>
+        <div class="field"><label>Notes (optional)</label><input type="text" id="taobaoNotes" placeholder="e.g. Order notes" /></div>
      </div>
      <div style="margin-top:16px;padding:12px 14px;background:var(--accent-light);border:1px solid #c3d9ff;border-radius:8px;display:flex;align-items:center;gap:12px">
        <div>
@@ -303,7 +304,7 @@
  
  <div id="scanSupplierBadge" style="margin:4px 0 10px"></div>
  <div class="form-grid" style="margin-bottom:10px">
- <div class="field"><label>Supplier PN</label><input type="text" id="scanSupplierPn" placeholder="e.g. 296-11602-1-ND" /></div>
+ <input type="hidden" id="scanSupplierPn" value="" />
  <div class="field"><label>Description</label><input type="text" id="scanDesc" placeholder="auto-detected" /></div>
  <div class="field" id="scanLocationField">
  <label>Storage Location</label>
@@ -533,7 +534,7 @@
  <div class="field"><label>Manufacturer Part Number *</label><input type="text" id="newPartMfrPn" placeholder="e.g. SN74LVC1G08DCKR" style="font-family:var(--mono)" /></div>
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
  <div class="field"><label>Supplier</label><input type="text" id="newPartSupplier" placeholder="e.g. DigiKey" /></div>
- <div class="field"><label>Supplier PN</label><input type="text" id="newPartSupplierPn" placeholder="e.g. 296-1234-ND" style="font-family:var(--mono)" /></div>
+ <input type="hidden" id="newPartSupplierPn" value="" />
  </div>
  <div class="field"><label>Description</label><input type="text" id="newPartDesc" placeholder="e.g. IC GATE AND 1CH SC70-5" /></div>
  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -1637,7 +1638,7 @@ function openNewPartDrawer() {
 }
 function closeNewPartDrawer() { document.getElementById("drawerOverlay").classList.remove("open"); document.getElementById("newPartDrawer").classList.remove("open"); }
 async function submitNewPart() {
- const mfrPn=document.getElementById("newPartMfrPn").value.trim(); const supplier=document.getElementById("newPartSupplier").value.trim(); const suppPn=document.getElementById("newPartSupplierPn").value.trim(); const desc=document.getElementById("newPartDesc").value.trim(); const qty=parseInt(document.getElementById("newPartQty").value)||0; const location=document.getElementById("newPartLocation").value.trim(); const notes=document.getElementById("newPartNotes").value.trim(); const statusEl=document.getElementById("newPartStatus");
+ const mfrPn=document.getElementById("newPartMfrPn").value.trim(); const supplier=document.getElementById("newPartSupplier").value.trim(); const suppPn=""; const desc=document.getElementById("newPartDesc").value.trim(); const qty=parseInt(document.getElementById("newPartQty").value)||0; const location=document.getElementById("newPartLocation").value.trim(); const notes=document.getElementById("newPartNotes").value.trim(); const statusEl=document.getElementById("newPartStatus");
  if (!mfrPn){statusEl.style.display="block";statusEl.innerHTML="Manufacturer Part Number is required.";statusEl.className="status-bar err";return;}
  if (qty<=0){statusEl.style.display="block";statusEl.innerHTML="Quantity must be at least 1.";statusEl.className="status-bar err";return;}
  statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Adding to inventory\u2026';statusEl.className="status-bar loading";
@@ -1697,7 +1698,7 @@ function setScanMode(mode) {
    document.getElementById("locLookupResult") && (document.getElementById("locLookupResult").innerHTML="");
    populateTaobaoBoxDropdown();
    updateTaobaoNextPn();
-   setTimeout(()=>{ const el=document.getElementById("taobaoDesc"); if(el) el.focus(); },100);
+   setTimeout(()=>{ const el=document.getElementById("taobaoMfrPn"); if(el) el.focus(); },100);
  } else {
    if(scannerLayout) scannerLayout.style.display="";
    if(locPanel) locPanel.style.display="none";
@@ -1746,13 +1747,15 @@ function updateTaobaoNextPn() {
 }
 
 async function confirmTaobaoReceive() {
+  const mfrPn    = document.getElementById("taobaoMfrPn").value.trim();
   const desc     = document.getElementById("taobaoDesc").value.trim();
   const qty      = parseInt(document.getElementById("taobaoQty").value)||0;
   const boxId    = document.getElementById("taobaoBox").value.trim();
-  const supplier = document.getElementById("taobaoSupplier").value.trim() || "Unknown";
+  const supplier = "";
   const notes    = document.getElementById("taobaoNotes").value.trim();
   const statusEl = document.getElementById("taobaoStatus");
 
+  if (!mfrPn) { statusEl.style.display="block"; statusEl.innerHTML="MF Part No. is required."; statusEl.className="status-bar err"; return; }
   if (!desc) { statusEl.style.display="block"; statusEl.innerHTML="Description is required."; statusEl.className="status-bar err"; return; }
   if (qty<=0) { statusEl.style.display="block"; statusEl.innerHTML="Quantity must be at least 1."; statusEl.className="status-bar err"; return; }
 
@@ -1760,22 +1763,22 @@ async function confirmTaobaoReceive() {
   const today = todayStr();
 
   try {
-    // Assign Nexwah PN = slot label
+    // Assign Nexwah PN = slot/location label. Supplier PN is intentionally blank.
     const finalBoxId = boxId || (() => { for (const loc of LOCATIONS) { if (loc.type==='PB') return loc.id; } return 'PB1'; })();
     const nexwahPn = claimNextSlot(finalBoxId);
 
-    // Use Nexwah PN as the MFR PN since there is none
-    const row = ["", supplier, nexwahPn, desc, qty, nexwahPn, today];
+    const row = ["", supplier, mfrPn, desc, qty, nexwahPn, today];
     const res = await sheetAppend(row);
     if (res.trim() !== "ok") throw new Error(res);
-    await sheetAppendTx([today, nexwahPn, supplier, "Receive", qty, 0, qty, notes||"Receive"]);
+    await sheetAppendTx([today, mfrPn, supplier, "Receive", qty, 0, qty, notes||`Nexwah PN ${nexwahPn}`]);
     _invCache = null;
 
-    statusEl.innerHTML=`\u2713 Registered! Nexwah PN: <b style="font-family:var(--mono);font-size:15px">${nexwahPn}</b> — Print and stick this on the box.`;
+    statusEl.innerHTML=`\u2713 Registered! MF Part No.: <b style="font-family:var(--mono);font-size:15px">${mfrPn}</b> · Nexwah PN: <b style="font-family:var(--mono);font-size:15px">${nexwahPn}</b>`;
     statusEl.className="status-bar ok";
-    toast(`Registered: ${nexwahPn}`);
+    toast(`Registered: ${mfrPn} → ${nexwahPn}`);
 
     // Reset form for next item
+    document.getElementById("taobaoMfrPn").value="";
     document.getElementById("taobaoDesc").value="";
     document.getElementById("taobaoQty").value="1";
     document.getElementById("taobaoNotes").value="";
@@ -1831,7 +1834,7 @@ async function preprocessImageForOCR(dataUrl){return new Promise(resolve=>{const
 async function handleScanResult(parsed,dataUrl,method){
  const today=todayStr();currentScan={...parsed,date:today};
  document.getElementById("scanMfrPn").value=parsed.mfrPartNumber;document.getElementById("scanMfrPn").style.borderColor="var(--accent)";
- document.getElementById("scanSupplierPn").value=parsed.supplierPartNumber||"";document.getElementById("scanDesc").value=parsed.description||"";
+ document.getElementById("scanSupplierPn").value="";document.getElementById("scanDesc").value=parsed.description||"";
  showSupplierBadge("scanSupplierBadge",parsed.supplier);
  setCamStatus(`\u2713 Label read via <b>${method}</b>. Edit if needed, then check inventory.`,"ok");
  // Auto-suggest location based on description
@@ -1843,7 +1846,7 @@ async function handleScanResult(parsed,dataUrl,method){
  }
  }
  await lookupForScan(parsed.mfrPartNumber);
- setTimeout(async()=>{try{const resized=await resizeImageForStorage(dataUrl,MAX_IMAGE_SIZE);await saveScanToHistory({mfrPn:parsed.mfrPartNumber,supplierPn:parsed.supplierPartNumber||"",supplier:parsed.supplier||"Unknown",desc:parsed.description||"",date:today,image:resized});}catch(e){console.warn("Scan history save failed:",e);}},100);
+ setTimeout(async()=>{try{const resized=await resizeImageForStorage(dataUrl,MAX_IMAGE_SIZE);await saveScanToHistory({mfrPn:parsed.mfrPartNumber,supplierPn:"",supplier:parsed.supplier||"Unknown",desc:parsed.description||"",date:today,image:resized});}catch(e){console.warn("Scan history save failed:",e);}},100);
 }
 
 function showSupplierBadge(elId,supplier){const map={DigiKey:"badge-digikey",Mouser:"badge-mouser",Octopart:"badge-octopart"};document.getElementById(elId).innerHTML=`<span class="supplier-badge ${map[supplier]||"badge-unknown"}">${supplier||"Unknown"}</span>`;}
@@ -1958,7 +1961,7 @@ function updateDispatchPreview(currentQty) {
 async function confirmScanDispatch(rowIdx,currentQty){const qty=parseInt(document.getElementById("dispatchQty").value)||0;const notes=document.getElementById("dispatchNotes").value.trim();const statusEl=document.getElementById("scanDispatchStatus");if(qty<=0||qty>currentQty){statusEl.style.display="block";statusEl.innerHTML=`Enter 1\u2013${currentQty}`;statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing\u2026';statusEl.className="status-bar loading";const newQty=currentQty-qty;const today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Use",qty,currentQty,newQty,notes||"Scan dispatch"]);statusEl.innerHTML=`\u2713 Dispatched ${qty}. Remaining: ${newQty}`;statusEl.className="status-bar ok";toast(`Dispatched ${qty} \u00d7 ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 async function confirmScanReceiveExisting(rowIdx,currentQty,boxId,existingLoc){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");if(qty<=0){statusEl.style.display="block";statusEl.innerHTML="Enter qty \u2265 1";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing\u2026';statusEl.className="status-bar loading";const newQty=currentQty+qty;const today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);// Only assign a slot if the part has NO location yet
 if(!existingLoc&&boxId&&LOCATIONS.find(l=>l.id===boxId)){const slot=claimNextSlot(boxId);await sheetUpdateLocation(rowIdx,slot);}const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,currentQty,newQty,notes||"Scan receive"]);statusEl.innerHTML=`\u2713 Received ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Received ${qty} \u00d7 ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
-async function confirmScanReceiveNew(){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");const mfrPn=document.getElementById("scanMfrPn").value.trim();const suppPn=document.getElementById("scanSupplierPn").value.trim();const desc=document.getElementById("scanDesc").value.trim();const locationSel=document.getElementById("scanLocation");const locId=locationSel?locationSel.value.trim():"";const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";if(!mfrPn||qty<=0){statusEl.style.display="block";statusEl.innerHTML="Part number and qty required";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Adding\u2026';statusEl.className="status-bar loading";const today=todayStr();try{
+async function confirmScanReceiveNew(){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");const mfrPn=document.getElementById("scanMfrPn").value.trim();const suppPn="";const desc=document.getElementById("scanDesc").value.trim();const locationSel=document.getElementById("scanLocation");const locId=locationSel?locationSel.value.trim():"";const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";if(!mfrPn||qty<=0){statusEl.style.display="block";statusEl.innerHTML="Part number and qty required";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Adding\u2026';statusEl.className="status-bar loading";const today=todayStr();try{
   // Check if part already exists to prevent duplicates
   const rows=await sheetRead();
   let existingIdx=-1,existingQty=0;
@@ -1974,7 +1977,7 @@ async function confirmScanReceiveNew(){const qty=parseInt(document.getElementByI
   } else {
     // Truly new part — append new row with slot
     const finalLocation=locId?claimNextSlot(locId):(await autoAssignLocation())||"";
-    const row=[suppPn,supplier,mfrPn,desc,qty,finalLocation,today];const res=await sheetAppend(row);
+    const row=["",supplier,mfrPn,desc,qty,finalLocation,today];const res=await sheetAppend(row);
     if(res.trim()!=="ok")throw new Error(res);
     await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,0,qty,notes||"Scan receive new"]);
     _invCache=null;
