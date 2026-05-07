@@ -446,6 +446,7 @@
  <div class="card-title">Scan History</div>
  <div class="search-bar">
  <input type="text" id="scanHistorySearch" placeholder="Search by part number&hellip;" oninput="renderScanHistory()" />
+ <button class="btn btn-secondary" onclick="migrateScanHistoryImagesToDrive()">Move Imgur to Drive</button>
  <button class="btn btn-danger" onclick="clearScanHistory()">Clear All</button>
  </div>
  </div>
@@ -2069,10 +2070,13 @@ async function confirmScanReceiveNew(){const qty=parseInt(document.getElementByI
   }
 }catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 
-// SCAN HISTORY 
-const IMGUR_CLIENT_ID="546c25a59c58ad7";
-async function uploadImageToImgur(base64DataUrl){const base64=base64DataUrl.split(",")[1];const formData=new FormData();formData.append("image",base64);formData.append("type","base64");const resp=await fetch("https://api.imgur.com/3/image",{method:"POST",headers:{"Authorization":"Client-ID "+IMGUR_CLIENT_ID},body:formData});const data=await resp.json();if(data.success&&data.data&&data.data.link)return data.data.link;throw new Error("Imgur upload failed: "+JSON.stringify(data));}
-async function saveScanToHistory(scan){let imageUrl="";if(scan.image&&scan.image.startsWith("data:")){try{imageUrl=await uploadImageToImgur(scan.image);}catch(imgErr){console.warn("Imgur upload failed:",imgErr.message);imageUrl="";}}const row=[scan.date||todayStr(),scan.mfrPn||"",scan.supplierPn||"",scan.supplier||"Unknown",scan.desc||"",imageUrl];try{const url=`${APPS_SCRIPT_URL}?action=append&sheet=${encodeURIComponent(SCAN_HISTORY_SHEET)}&row=${encodeURIComponent(JSON.stringify(row))}`;await fetch(url);}catch(sheetErr){console.warn("Sheet save failed:",sheetErr.message);}}
+// SCAN HISTORY — images saved to Google Drive through Apps Script
+const SCAN_HISTORY_DRIVE_FOLDER = "NEXWAH Scan History";
+function dataUrlParts(dataUrl){const m=String(dataUrl||"").match(/^data:(.*?);base64,(.*)$/);if(!m)throw new Error("Invalid image data");return{mimeType:m[1]||"image/jpeg",base64:m[2]||""};}
+function driveImageFileName(scan){const pn=String(scan.mfrPn||"scan").replace(/[^A-Za-z0-9._-]/g,"_").slice(0,60)||"scan";const ts=new Date().toISOString().replace(/[:.]/g,"-");return `scan_${pn}_${ts}.jpg`;}
+async function uploadImageToGoogleDrive(base64DataUrl,scan={}){const parts=dataUrlParts(base64DataUrl);const payload={action:"uploadScanImage",folderName:SCAN_HISTORY_DRIVE_FOLDER,filename:driveImageFileName(scan),mimeType:parts.mimeType,data:parts.base64};const resp=await fetch(APPS_SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)});const text=await resp.text();let data;try{data=JSON.parse(text);}catch(e){throw new Error("Drive upload returned non-JSON response: "+text.slice(0,160));}if(data.ok&&data.url)return data.url;throw new Error(data.error||"Google Drive upload failed");}
+async function saveScanToHistory(scan){let imageUrl="";if(scan.image&&scan.image.startsWith("data:")){try{imageUrl=await uploadImageToGoogleDrive(scan.image,scan);}catch(imgErr){console.warn("Google Drive upload failed:",imgErr.message);imageUrl="";}}const row=[scan.date||todayStr(),scan.mfrPn||"",scan.supplierPn||"",scan.supplier||"Unknown",scan.desc||"",imageUrl];try{const url=`${APPS_SCRIPT_URL}?action=append&sheet=${encodeURIComponent(SCAN_HISTORY_SHEET)}&row=${encodeURIComponent(JSON.stringify(row))}`;await fetch(url);}catch(sheetErr){console.warn("Sheet save failed:",sheetErr.message);}}
+async function migrateScanHistoryImagesToDrive(){if(!confirm("Move existing Imgur scan-history images to Google Drive? This updates the ScanHistory sheet image links."))return;toast("Moving scan images to Google Drive...");try{const resp=await fetch(APPS_SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"migrateScanHistoryImages",sheet:SCAN_HISTORY_SHEET,folderName:SCAN_HISTORY_DRIVE_FOLDER})});const text=await resp.text();let data;try{data=JSON.parse(text);}catch(e){throw new Error(text.slice(0,180));}if(!data.ok)throw new Error(data.error||"Migration failed");toast(`Moved ${data.migrated||0} image(s) to Google Drive.`);renderScanHistory();}catch(e){toast("Migration failed: "+e.message);}}
 async function loadAllScans(){const resp=await fetch(`${APPS_SCRIPT_URL}?action=read&sheet=${encodeURIComponent(SCAN_HISTORY_SHEET)}`);const rows=await resp.json();const data=rows.slice(1).filter(r=>r[1]);return data.reverse();}
 async function deleteScanRow(rowIdx){try{const url=`${APPS_SCRIPT_URL}?action=deleteRow&sheet=${encodeURIComponent(SCAN_HISTORY_SHEET)}&rowIndex=${rowIdx}`;await fetch(url);}catch(e){console.warn("Delete row failed:",e);}renderScanHistory();}
 async function clearScanHistory(){if(!confirm("Delete all scan history? This cannot be undone."))return;try{const url=`${APPS_SCRIPT_URL}?action=clearSheet&sheet=${encodeURIComponent(SCAN_HISTORY_SHEET)}`;await fetch(url);toast("Scan history cleared.");}catch(e){toast("Clear failed: "+e.message);}renderScanHistory();}
