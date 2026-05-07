@@ -365,19 +365,19 @@
  <div style="display:flex;gap:8px;flex-wrap:wrap">
  <button class="btn btn-primary btn-sm" onclick="openNewPartDrawer()">+ Add New Part</button>
  <button class="btn btn-secondary btn-sm" onclick="exportInventoryCSV()">Export CSV</button>
- <button class="btn btn-secondary btn-sm" onclick="fixMissingRowSerials()">Fix Missing Row Serials</button>
+ <button class="btn btn-secondary btn-sm" onclick="fixMissingRowSerials()">Fix Missing Nexwah PN Serials</button>
  <button class="btn btn-danger btn-sm" onclick="confirmClear()">Clear All Data</button>
  </div>
  </div>
  <div class="search-bar" style="margin-bottom:0">
- <input type="text" id="invSearch" placeholder="Search by part number, description, location&hellip;" oninput="filterInventory()" />
+ <input type="text" id="invSearch" placeholder="Search by part number, description, Nexwah PN&hellip;" oninput="filterInventory()" />
  </div>
  
  </div>
  <div class="table-wrap" id="invResultsWrap" style="display:none">
  <table>
- <thead><tr><th>Mfr Part Number</th><th>Description</th><th>Location</th><th>Row</th><th>Quantity</th><th>Actions</th></tr></thead>
- <tbody id="invTableBody"><tr><td colspan="6" class="empty-state">Type in the search box to find inventory items.</td></tr></tbody>
+ <thead><tr><th>Mfr Part Number</th><th>Description</th><th>Nexwah PN</th><th>Quantity</th><th>Actions</th></tr></thead>
+ <tbody id="invTableBody"><tr><td colspan="5" class="empty-state">Type in the search box to find inventory items.</td></tr></tbody>
  </table>
  </div>
  </div>
@@ -492,7 +492,7 @@
 
  <!-- Edit Location -->
  <div class="drawer-action-section" style="margin-bottom:14px">
-   <div class="drawer-action-title">Location</div>
+   <div class="drawer-action-title">Nexwah PN Assignment</div>
    <div style="display:flex;gap:8px;align-items:center">
      <select id="drawerLocationSelect" style="flex:1;font-family:var(--mono);font-size:12px;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;outline:none;background:var(--surface);color:var(--text)">
        <option value="">— not assigned —</option>
@@ -979,7 +979,7 @@ function isFull(locId) { return false; } // never hard-block — capacity is a s
 function usedCount(locId) { return (locSlots[locId]||[]).length; }
 function slotLabel(locId, n) { return `${locId}-${pad2(n)}`; }
 
-// Builds a rowIndex -> full Row serial map.
+// Builds a rowIndex -> full Nexwah PN map.
 // Google Sheet columns are:
 // Timestamp | ID | PartNumber | Description | Quantity | Location | Row | NexwahPN | Source | Cost | Stock Level | Image | Memo
 // Location = box only, e.g. PB22.
@@ -1496,13 +1496,13 @@ async function sheetAppendTx(row) { const url=`${APPS_SCRIPT_URL}?action=append&
 // INVENTORY
 function escQ(s) { return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
 let _invCache = null; // cache last successful sheet data
-let _effectiveLocationMap = {}; // rowIndex -> displayed/full Row serial
+let _effectiveLocationMap = {}; // rowIndex -> displayed/full Nexwah PN
 
 // Called on page load, tab switch, and after stock updates — fetches from sheet
 async function renderInventory() {
   const tbody = document.getElementById("invTableBody");
   if (!_invCache) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state"><span class="spinner"></span>Loading\u2026</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state"><span class="spinner"></span>Loading\u2026</td></tr>`;
   }
   try {
     const rows = await sheetRead();
@@ -1513,7 +1513,7 @@ async function renderInventory() {
       _renderInvRows(tbody);
       toast("Showing cached data \u2014 could not reach Google Sheets.");
     } else {
-      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">
         <div style="color:var(--error);font-weight:600;margin-bottom:6px">Could not connect to Google Sheets</div>
         <div style="color:var(--muted);font-size:12px">Check your internet connection and try again.</div>
         <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="renderInventory()">Retry</button>
@@ -1535,7 +1535,7 @@ function _renderInvRows(tbody) {
 
   if (!search) {
     if (resultsWrap) resultsWrap.style.display = "none";
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Type in the search box to find inventory items.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Type in the search box to find inventory items.</td></tr>`;
     return;
   }
 
@@ -1555,7 +1555,7 @@ function _renderInvRows(tbody) {
   });
   data.sort((a,b) => String(a.r[2]||"").localeCompare(String(b.r[2]||"")));
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No results found for "${search}".</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No results found for "${search}".</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(({r,origIdx,rowSerial,boxLoc}) => {
@@ -1569,8 +1569,7 @@ function _renderInvRows(tbody) {
     return `<tr class="${low?"low-stock ":""}inv-row-clickable" onclick="openDrawer(${origIdx},'${mfrPn}','','${source}','${desc}','${box}','${rowVal}',${qty},'${updated}')">
       <td class="mono">${r[2]||"\u2014"}</td>
       <td>${r[3]||"\u2014"}</td>
-      <td class="mono">${boxLoc||"\u2014"}</td>
-      <td class="mono">${rowSerial||"\u2014"}</td>
+      <td class="mono">${rowSerial||boxLoc||"\u2014"}</td>
       <td class="mono" style="font-weight:600${low?";color:var(--error)":""}">${qty}</td>
       <td onclick="event.stopPropagation()"><div class="quick-btns">
         <button class="btn btn-success btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${source}',${qty},'Receive')">+</button>
@@ -1615,14 +1614,12 @@ function getNexwahPnValue(mfrPn, location, rowSerial) {
  return "\u2014";
 }
 function renderDrawerInfo(mfrPn, desc, qty, location, rowSerial) {
- const displayLoc = location || "\u2014";
- const displayRow = rowSerial || "\u2014";
+ const nexwahPn = rowSerial || location || "\u2014";
  return [
    ["Mfr PN", mfrPn || "\u2014"],
    ["Description", desc || "\u2014"],
-   ["Quantity", `${qty || 0} units`],
-   ["Location", displayLoc],
-   ["Row", displayRow]
+   ["Nexwah PN", nexwahPn],
+   ["Quantity", `${qty || 0} units`]
  ].map(([label,val])=>`<div class="info-row"><div class="info-label">${label}</div><div class="info-value">${val}</div></div>`).join("");
 }
 function openDrawer(rowIdx,mfrPn,suppPn,supplier,desc,location,rowSerial,qty,lastUpdated) {
@@ -1664,12 +1661,12 @@ async function saveDrawerLocation() {
    const rowSerial = boxId ? claimNextSlot(boxId) : "";
    const box = rowSerial ? getBaseLocationId(rowSerial) : "";
    await sheetUpdateLocation(drawerRowData.rowIdx, box);
-   try { await sheetUpdateRowSerial(drawerRowData.rowIdx, rowSerial); } catch(e) { console.warn("Row serial update failed:", e); }
+   try { await sheetUpdateRowSerial(drawerRowData.rowIdx, rowSerial); } catch(e) { console.warn("Nexwah PN update failed:", e); }
    drawerRowData.location = box;
    drawerRowData.rowSerial = rowSerial;
    document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(drawerRowData.mfrPn, drawerRowData.desc, drawerRowData.qty, box||"\u2014", rowSerial||"\u2014");
-   statusEl.innerHTML=`\u2713 Location saved: ${box||"(none)"} / Row: ${rowSerial||"(none)"}`;statusEl.className="status-bar ok";
-   toast("Location updated: " + (rowSerial||"cleared"));
+   statusEl.innerHTML=`\u2713 Nexwah PN saved: ${rowSerial||"(none)"}`;statusEl.className="status-bar ok";
+   toast("Nexwah PN updated: " + (rowSerial||"cleared"));
    _invCache = null;
    renderInventory();
  } catch(e) {
@@ -1943,13 +1940,16 @@ async function lookupForScan(mfrPn){
     for(let i=1;i<rows.length;i++){
       const rowMpn=String(rows[i][2]||"").trim().toUpperCase();
       const rowLoc=String(rows[i][5]||"").trim().toUpperCase();
-      if(rowMpn===query || (isNexwahPn && rowLoc===query)){
+      const rowSerial=String(rows[i][6]||"").trim().toUpperCase();
+      const effective=getEffectiveLocation(rows[i], i+1).toUpperCase();
+      if(rowMpn===query || (isNexwahPn && (rowSerial===query || effective===query || rowLoc===query))){
         foundRow=rows[i];foundIdx=i+1;break;
       }
     }
+    const foundNexwahPn = foundRow ? getEffectiveLocation(foundRow, foundIdx) : "";
     showScanInvPanel(foundRow,foundIdx);
-    if(scanMode==="dispatch")setCamStatus(foundRow?`\u2713 Found \u2014 ${foundRow[4]||0} units in stock at ${foundRow[5]||"unknown location"}.`:`"${mfrPn}" not found in inventory.`,foundRow?"ok":"err");
-    else setCamStatus(foundRow?`\u2713 Found in inventory. Current stock: ${foundRow[4]||0} units at ${foundRow[5]||"no location"}.`:`"${mfrPn}" not in inventory yet \u2014 add it below.`,foundRow?"ok":"warn");
+    if(scanMode==="dispatch")setCamStatus(foundRow?`\u2713 Found \u2014 ${foundRow[4]||0} units in stock at ${foundNexwahPn||"unknown Nexwah PN"}.`:`"${mfrPn}" not found in inventory.`,foundRow?"ok":"err");
+    else setCamStatus(foundRow?`\u2713 Found in inventory. Current stock: ${foundRow[4]||0} units at ${foundNexwahPn||"no Nexwah PN"}.`:`"${mfrPn}" not in inventory yet \u2014 add it below.`,foundRow?"ok":"warn");
   }catch(e){setCamStatus("Sheet lookup failed: "+e.message,"err");showScanInvPanel(null,-1);}
 }
 function showScanInvPanel(row,rowIdx){
@@ -1968,7 +1968,7 @@ function showScanInvPanel(row,rowIdx){
     panel.className="inv-action found";
     panel.innerHTML=`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Location</div><div style="font-family:var(--mono);font-size:14px;font-weight:600;margin-top:2px">${row[5]||"\u2014"}</div></div>
+        <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Nexwah PN</div><div style="font-family:var(--mono);font-size:14px;font-weight:600;margin-top:2px">${getEffectiveLocation(row,rowIdx)||"\u2014"}</div></div>
         <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">In Stock</div><div style="font-family:var(--mono);font-size:14px;font-weight:600;margin-top:2px">${qty}</div></div>
       </div>
       <div class="qty-row">
@@ -1993,7 +1993,7 @@ function showScanInvPanel(row,rowIdx){
       panel.className="inv-action notfound";
       panel.innerHTML=`
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Next Available Location</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent);margin-top:2px" id="newPartSlotDisplay">${nextSlot}</div></div>
+          <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Next Available Nexwah PN</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent);margin-top:2px" id="newPartSlotDisplay">${nextSlot}</div></div>
           <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Previous Qty</div><div style="font-family:var(--mono);font-size:14px;font-weight:600;margin-top:2px">—</div></div>
         </div>
         <div class="qty-row">
@@ -2008,14 +2008,14 @@ function showScanInvPanel(row,rowIdx){
       // EXISTING PART — show location, prev qty, new qty
       if(locField) locField.style.display="none";
       const qty=parseInt(row[4]||"0");
-      const existingLoc=row[5]||"";
+      const existingLoc=getEffectiveLocation(row,rowIdx)||"";
       const hasSlot=/^[A-Za-z0-9]+-\d+$/.test(existingLoc);
       const boxId=hasSlot?existingLoc.replace(/-\d+$/,"").toUpperCase():existingLoc.toUpperCase();
 
       panel.className="inv-action found";
       panel.innerHTML=`
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
-          <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Location</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent);margin-top:2px">${existingLoc||"\u2014"}</div></div>
+          <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Nexwah PN</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent);margin-top:2px">${existingLoc||"\u2014"}</div></div>
           <div><div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Previous Qty</div><div style="font-family:var(--mono);font-size:16px;font-weight:700;margin-top:2px">${qty}</div></div>
         </div>
         <div class="qty-row">
@@ -2042,7 +2042,7 @@ function updateDispatchPreview(currentQty) {
 }
 async function confirmScanDispatch(rowIdx,currentQty){const qty=parseInt(document.getElementById("dispatchQty").value)||0;const notes=document.getElementById("dispatchNotes").value.trim();const statusEl=document.getElementById("scanDispatchStatus");if(qty<=0||qty>currentQty){statusEl.style.display="block";statusEl.innerHTML=`Enter 1\u2013${currentQty}`;statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing\u2026';statusEl.className="status-bar loading";const newQty=currentQty-qty;const today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Use",qty,currentQty,newQty,notes||"Scan dispatch"]);statusEl.innerHTML=`\u2713 Dispatched ${qty}. Remaining: ${newQty}`;statusEl.className="status-bar ok";toast(`Dispatched ${qty} \u00d7 ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 async function confirmScanReceiveExisting(rowIdx,currentQty,boxId,existingLoc){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");if(qty<=0){statusEl.style.display="block";statusEl.innerHTML="Enter qty \u2265 1";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing\u2026';statusEl.className="status-bar loading";const newQty=currentQty+qty;const today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);// Only assign a slot if the part has NO location yet
-if(!existingLoc&&boxId&&LOCATIONS.find(l=>l.id===boxId)){const slot=claimNextSlot(boxId);await sheetUpdateLocation(rowIdx,getBaseLocationId(slot));try{await sheetUpdateRowSerial(rowIdx,slot);}catch(e){console.warn("Row serial update failed:",e);}}const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,currentQty,newQty,notes||"Scan receive"]);statusEl.innerHTML=`\u2713 Received ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Received ${qty} \u00d7 ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
+if(!existingLoc&&boxId&&LOCATIONS.find(l=>l.id===boxId)){const slot=claimNextSlot(boxId);await sheetUpdateLocation(rowIdx,getBaseLocationId(slot));try{await sheetUpdateRowSerial(rowIdx,slot);}catch(e){console.warn("Nexwah PN update failed:",e);}}const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,currentQty,newQty,notes||"Scan receive"]);statusEl.innerHTML=`\u2713 Received ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Received ${qty} \u00d7 ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 async function confirmScanReceiveNew(){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");const mfrPn=document.getElementById("scanMfrPn").value.trim();const suppPn="";const desc=document.getElementById("scanDesc").value.trim();const locationSel=document.getElementById("scanLocation");const locId=locationSel?locationSel.value.trim():"";const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";if(!mfrPn||qty<=0){statusEl.style.display="block";statusEl.innerHTML="Part number and qty required";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Adding\u2026';statusEl.className="status-bar loading";const today=todayStr();try{
   // Check if part already exists to prevent duplicates
   const rows=await sheetRead();
@@ -2430,9 +2430,9 @@ function downloadBulkSampleCSV(){downloadFile("sample_bulk_receive.csv","text/cs
 async function confirmClear(){if(!confirm("This will delete ALL inventory and transaction data from Google Sheets. Are you sure?"))return;if(!confirm("SECOND CONFIRMATION: This cannot be undone. Proceed?"))return;toast("Clear not implemented — manage data in Google Sheets directly for safety.");}
 
 async function fixMissingRowSerials() {
-  if (!confirm("This will fill missing Row serials for display and, if your Apps Script supports updateRowSerial, write them to the Row column. Continue?")) return;
+  if (!confirm("This will fill missing Nexwah PNs for display and, if your Apps Script supports updateRowSerial, write them to the Row column. Continue?")) return;
   try {
-    toast("Fixing missing Row serials…");
+    toast("Fixing missing Nexwah PNs…");
     const rows = await sheetRead();
     const effectiveMap = buildEffectiveLocationMap(rows);
     let count = 0;
@@ -2444,13 +2444,13 @@ async function fixMissingRowSerials() {
       const fixedRow = effectiveMap[rowIndex] || currentRow;
       if (!box || !fixedRow || currentRow === fixedRow) continue;
       if (!isKnownLocationBox(box) || !isFullSlotLabel(fixedRow)) continue;
-      try { await sheetUpdateRowSerial(rowIndex, fixedRow); } catch(e) { console.warn("Could not write Row serial", rowIndex, e); }
+      try { await sheetUpdateRowSerial(rowIndex, fixedRow); } catch(e) { console.warn("Could not write Nexwah PN", rowIndex, e); }
       rows[i][6] = fixedRow;
       count++;
     }
 
     _invCache = null;
-    toast(`Prepared ${count} missing Row serial(s).`);
+    toast(`Prepared ${count} missing Nexwah PN(s).`);
     await renderInventory();
     populateAllLocationDropdowns();
     renderLocations();
