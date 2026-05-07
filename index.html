@@ -1416,6 +1416,24 @@ async function deleteInventoryRow(rowIdx, mfrPn) {
 }
 
 // DRAWER 
+function getNexwahPnValue(mfrPn, location) {
+ const loc = (location || "").trim();
+ const pn = (mfrPn || "").trim();
+ if (/^[A-Za-z0-9]+-\d+$/.test(loc)) return loc;
+ if (/^[A-Za-z0-9]+-\d+$/.test(pn)) return pn;
+ return "\u2014";
+}
+function renderDrawerInfo(mfrPn, desc, qty, location) {
+ const displayLoc = location || "\u2014";
+ const nexwahPn = getNexwahPnValue(mfrPn, location);
+ return [
+   ["Mfr PN", mfrPn || "\u2014"],
+   ["Description", desc || "\u2014"],
+   ["Quantity", `${qty || 0} units`],
+   ["Location", displayLoc],
+   ["Nexwah PN", nexwahPn]
+ ].map(([label,val])=>`<div class="info-row"><div class="info-label">${label}</div><div class="info-value">${val}</div></div>`).join("");
+}
 function openDrawer(rowIdx,mfrPn,suppPn,supplier,desc,location,qty,lastUpdated) {
  drawerRowData={rowIdx,mfrPn,suppPn,supplier,desc,location,qty,lastUpdated};
  document.getElementById("drawerMfrPn").textContent=mfrPn||"\u2014";
@@ -1428,7 +1446,7 @@ function openDrawer(rowIdx,mfrPn,suppPn,supplier,desc,location,qty,lastUpdated) 
  const hasSlot = /^[A-Za-z0-9]+-\d+$/.test(location);
  const boxId = hasSlot ? location.replace(/-\d+$/,"").toUpperCase() : location.toUpperCase();
  const displayLoc = hasSlot ? location : (location && LOCATIONS.find(l=>l.id===boxId) ? slotLabel(boxId, getNextSlot(boxId)) : location||"\u2014");
- document.getElementById("drawerInfoRows").innerHTML=[["Mfr PN",mfrPn||"\u2014"],["Supplier PN",suppPn||"\u2014"],["Supplier",supplier||"\u2014"],["Location",displayLoc],["Updated",formatDate(lastUpdated)||"\u2014"]].map(([label,val])=>`<div class="info-row"><div class="info-label">${label}</div><div class="info-value">${val}</div></div>`).join("");
+ document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(mfrPn, desc, qty, displayLoc);
  document.getElementById("drawerQty").value="1"; document.getElementById("drawerNotes").value="";
  const s=document.getElementById("drawerStatus"); s.style.display="none";
  const ls=document.getElementById("drawerLocationStatus"); ls.style.display="none";
@@ -1460,7 +1478,7 @@ async function saveDrawerLocation() {
    const finalLocation = boxId ? claimNextSlot(boxId) : "";
    await sheetUpdateLocation(drawerRowData.rowIdx, finalLocation);
    drawerRowData.location = finalLocation;
-   document.getElementById("drawerInfoRows").innerHTML=[["Mfr PN",drawerRowData.mfrPn||"\u2014"],["Supplier PN",drawerRowData.suppPn||"\u2014"],["Supplier",drawerRowData.supplier||"\u2014"],["Location",finalLocation||"\u2014"],["Updated",formatDate(drawerRowData.lastUpdated)||"\u2014"]].map(([label,val])=>`<div class="info-row"><div class="info-label">${label}</div><div class="info-value">${val}</div></div>`).join("");
+   document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(drawerRowData.mfrPn, drawerRowData.desc, drawerRowData.qty, finalLocation||"\u2014");
    statusEl.innerHTML=`\u2713 Location saved: ${finalLocation||"(none)"}`;statusEl.className="status-bar ok";
    toast("Location updated: " + (finalLocation||"cleared"));
    _invCache = null;
@@ -1493,6 +1511,7 @@ async function submitDrawerUpdate() {
  if (newQty<=0){pill.className="stock-pill empty";pill.textContent=`0 units \u2014 out of stock`;}
  else if (newQty<=5){pill.className="stock-pill low";pill.textContent=`${newQty} units \u2014 low stock`;}
  else{pill.className="stock-pill ok";pill.textContent=`${newQty} units in stock`;}
+ document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(drawerRowData.mfrPn, drawerRowData.desc, newQty, drawerRowData.location||"\u2014");
  renderInventory();
  } catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}
 }
