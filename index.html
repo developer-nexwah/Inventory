@@ -390,7 +390,7 @@
  <div style="font-size:16px;font-weight:700;color:var(--text)">Location Manager</div>
  </div>
  <div style="display:flex;gap:8px;flex-wrap:wrap">
-   <button class="btn btn-secondary" onclick="openNewBoxModal()">+ New PB Box</button>
+   <button class="btn btn-secondary" onclick="openNewBoxModal()">+ New Location</button>
    <button class="btn btn-primary" onclick="openAddComponentModal()">+ Add Component to Location</button>
  </div>
  </div>
@@ -400,7 +400,16 @@
  <input type="text" id="locSearch" placeholder="Search location ID or name…" oninput="renderLocations()">
  </div>
  <button class="loc-filter-btn active" onclick="setLocFilter('all',this)">All</button>
- <button class="loc-filter-btn" onclick="setLocFilter('PB',this)">PB Bins</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('PB',this)">PB</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('T',this)">T</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('LB',this)">LB</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('DR',this)">DR</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('PD',this)">PD</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('SD',this)">SD</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('BX',this)">BX</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('CN',this)">CN</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('SF',this)">SF</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('OTHER',this)">Other</button>
  </div>
  </div>
  <div class="loc-grid" id="locGrid"></div>
@@ -548,7 +557,7 @@
  <div class="loc-modal" style="max-width:400px">
   <div class="loc-modal-header">
    <div>
-    <div class="loc-modal-title">Add New PB Box</div>
+    <div class="loc-modal-title">Add New Location</div>
     <div class="loc-modal-subtitle">Creates a new storage location</div>
    </div>
    <button class="loc-modal-close" onclick="closeNewBoxModal()">&#x2715;</button>
@@ -557,7 +566,7 @@
    <div style="display:flex;flex-direction:column;gap:12px">
     <div class="field">
      <label>Box ID</label>
-     <input type="text" id="newBoxId" placeholder="e.g. PB73" style="font-family:var(--mono);font-weight:600;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
+     <input type="text" id="newBoxId" placeholder="e.g. PB73, LB37, BX21" style="font-family:var(--mono);font-weight:600;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" />
      
     </div>
     <div class="field">
@@ -748,80 +757,153 @@ let drawerAction = "Receive";
 // 
 // LOCATION DATA — all NexStore locations
 // 
+function makeLoc(id, name = '', type = '') {
+  const cleanId = String(id).trim();
+  const inferredType = type || ((cleanId.match(/^[A-Z]+/) || ['OTHER'])[0]);
+  return { id: cleanId, name: name || '', type: inferredType };
+}
+
+function locRange(prefix, start, end, names = {}) {
+  const arr = [];
+  for (let i = start; i <= end; i++) {
+    const id = prefix + String(i).padStart(2, '0');
+    arr.push(makeLoc(id, names[id] || '', prefix));
+  }
+  return arr;
+}
+
+function bxRange(start, end, names = {}) {
+  const arr = [];
+  for (let i = start; i <= end; i++) {
+    const id = 'BX' + String(i).padStart(2, '0');
+    arr.push(makeLoc(id, names[id] || '', 'BX'));
+  }
+  return arr;
+}
+
+const PB_NAMES = {
+  PB0:'TEST',
+  PB1:'IC PMIC', PB2:'IC PMIC', PB3:'IC PMIC',
+  PB4:'IC LOGIC', PB5:'SWITCH INTERFACE', PB6:'IC WIRELESS RF',
+  PB7:'SMT INDUCTOR FERRITE FUSE', PB8:'IC INTERFACE', PB9:'IC ANALOG AMPLIFIER',
+  PB10:'CLK TIMER', PB11:'CAP1206 CAP1210', PB12:'CAP0805', PB13:'CAP0603', PB14:'CAP0402',
+  PB15:'RES0805', PB16:'RES1206', PB17:'RES0805 RES0402', PB18:'RES0603 RES1206',
+  PB19:'RES0603 RES1210', PB20:'RES0402 RES0201', PB21:'RES1206', PB22:'RES0402',
+  PB23:'CAP0603', PB24:'RES0603', PB25:'IC MOSFET RF', PB26:'IC MOSFET DIODE',
+  PB27:'IC TRANSISTOR', PB28:'VARISTOR', PB29:'', PB30:'XTAL', PB31:'Inductor',
+  PB32:'CAP TANT CASE C D', PB33:'', PB34:'', PB35:'SENSORS', PB36:'', PB37:'', PB38:'',
+  PB39:'CAPTH', PB40:'', PB41:'', PB42:'', PB43:'', PB44:'Module', PB45:'DIODE',
+  PB46:'Diode', PB47:'', PB48:'RES0402 RES1206', PB49:'', PB50:'', PB51:'DIODE',
+  PB52:'DIODE', PB53:'', PB54:'RESTH', PB55:'RESTH', PB56:'LED', PB57:'',
+  PB58:'按键开关', PB59:'', PB60:'针座连接器', PB61:'CONNECTOR 连接器', PB62:'SWITCH 开关',
+  PB63:'TEST POINT PROBE 测试点', PB64:'Radial Capacitor', PB65:'Microcontrollers MCU',
+  PB66:'', PB67:'Antenna', PB68:'', PB69:'', PB70:'', PB71:'', PB72:''
+};
+
 const LOCATIONS = [
- { id:'PB0', name:'TEST', type:'PB' },
- { id:'PB1', name:'IC PMIC', type:'PB' },
- { id:'PB2', name:'IC PMIC', type:'PB' },
- { id:'PB3', name:'IC PMIC', type:'PB' },
- { id:'PB4', name:'IC LOGIC', type:'PB' },
- { id:'PB5', name:'SWITCH INTERFACE', type:'PB' },
- { id:'PB6', name:'IC WIRELESS RF', type:'PB' },
- { id:'PB7', name:'SMT INDUCTOR FERRITE FUSE', type:'PB' },
- { id:'PB8', name:'IC INTERFACE', type:'PB' },
- { id:'PB9', name:'IC ANALOG AMPLIFIER', type:'PB' },
- { id:'PB10', name:'CLK TIMER', type:'PB' },
- { id:'PB11', name:'CAP1206 CAP1210', type:'PB' },
- { id:'PB12', name:'CAP0805', type:'PB' },
- { id:'PB13', name:'CAP0603', type:'PB' },
- { id:'PB14', name:'CAP0402', type:'PB' },
- { id:'PB15', name:'RES0805', type:'PB' },
- { id:'PB16', name:'RES1206', type:'PB' },
- { id:'PB17', name:'RES0805 RES0402', type:'PB' },
- { id:'PB18', name:'RES0603 RES1206', type:'PB' },
- { id:'PB19', name:'RES0603 RES1210', type:'PB' },
- { id:'PB20', name:'RES0402 RES0201', type:'PB' },
- { id:'PB21', name:'RES1206', type:'PB' },
- { id:'PB22', name:'RES0402', type:'PB' },
- { id:'PB23', name:'CAP0603', type:'PB' },
- { id:'PB24', name:'RES0603', type:'PB' },
- { id:'PB25', name:'IC MOSFET RF', type:'PB' },
- { id:'PB26', name:'IC MOSFET DIODE', type:'PB' },
- { id:'PB27', name:'IC TRANSISTOR', type:'PB' },
- { id:'PB28', name:'VARISTOR', type:'PB' },
- { id:'PB29', name:'', type:'PB' },
- { id:'PB30', name:'XTAL', type:'PB' },
- { id:'PB31', name:'Inductor', type:'PB' },
- { id:'PB32', name:'CAP TANT CASE C D', type:'PB' },
- { id:'PB33', name:'', type:'PB' },
- { id:'PB34', name:'', type:'PB' },
- { id:'PB35', name:'SENSORS', type:'PB' },
- { id:'PB36', name:'', type:'PB' },
- { id:'PB37', name:'', type:'PB' },
- { id:'PB38', name:'', type:'PB' },
- { id:'PB39', name:'CAPTH', type:'PB' },
- { id:'PB40', name:'', type:'PB' },
- { id:'PB41', name:'', type:'PB' },
- { id:'PB42', name:'', type:'PB' },
- { id:'PB43', name:'', type:'PB' },
- { id:'PB44', name:'Module', type:'PB' },
- { id:'PB45', name:'DIODE', type:'PB' },
- { id:'PB46', name:'Diode', type:'PB' },
- { id:'PB47', name:'', type:'PB' },
- { id:'PB48', name:'RES0402 RES1206', type:'PB' },
- { id:'PB49', name:'', type:'PB' },
- { id:'PB50', name:'', type:'PB' },
- { id:'PB51', name:'DIODE', type:'PB' },
- { id:'PB52', name:'DIODE', type:'PB' },
- { id:'PB53', name:'', type:'PB' },
- { id:'PB54', name:' RESTH', type:'PB' },
- { id:'PB55', name:' RESTH', type:'PB' },
- { id:'PB56', name:'LED', type:'PB' },
- { id:'PB57', name:'', type:'PB' },
- { id:'PB58', name:'', type:'PB' },
- { id:'PB59', name:'', type:'PB' },
- { id:'PB60', name:'', type:'PB' },
- { id:'PB61', name:'CONNECTOR ', type:'PB' },
- { id:'PB62', name:'SWITCH ', type:'PB' },
- { id:'PB63', name:'TEST POINT PROBE ', type:'PB' },
- { id:'PB64', name:'Radial Capacitor', type:'PB' },
- { id:'PB65', name:'Microcontrollers MCU', type:'PB' },
- { id:'PB66', name:'', type:'PB' },
- { id:'PB67', name:'Antenna', type:'PB' },
- { id:'PB68', name:'', type:'PB' },
- { id:'PB69', name:'', type:'PB' },
- { id:'PB70', name:'', type:'PB' },
- { id:'PB71', name:'', type:'PB' },
- { id:'PB72', name:'', type:'PB' },
+  // PB boxes
+  ...Array.from({ length: 73 }, (_, i) => makeLoc('PB' + i, PB_NAMES['PB' + i] || '', 'PB')),
+
+  // T boxes
+  ...locRange('T', 1, 20, {
+    T01:'USB',
+    T02:'简易牛角座排线插座',
+    T03:'连接器插头牛角座',
+    T05:'排母 连接器'
+  }),
+
+  // LB boxes
+  ...locRange('LB', 1, 36),
+
+  // DR boxes
+  ...locRange('DR', 1, 12, {
+    DR03:'Module 模块',
+    DR04:'EVK TOOLS',
+    DR06:'CONNECTOR 连接器',
+    DR07:'MISC'
+  }),
+
+  // PD boxes
+  ...locRange('PD', 1, 10, {
+    PD09:'PCB板'
+  }),
+
+  // SD boxes
+  ...locRange('SD', 1, 10, {
+    SD01:'12mm Wide Tape 超宽料盘',
+    SD02:'电池',
+    SD03:'白座',
+    SD04:'电池'
+  }),
+
+  // BX boxes
+  ...bxRange(0, 20, {
+    BX00:'PCBA',
+    BX01:'INTERFACE BOARD NW729267900C',
+    BX02:'S3 MAIN BOARD BX02-01, 02, 03',
+    BX03:'PCB',
+    BX04:'',
+    BX05:'NW100814580 NW100814559',
+    BX06:'SG736823600A SG739770300A',
+    BX07:'',
+    BX08:'100749964 - 100749962',
+    BX09:'',
+    BX10:'INFINEON',
+    BX11:'Tube 料管',
+    BX14:'NOT IN USE',
+    BX18:'',
+    BX19:'',
+    BX20:''
+  }),
+
+  // CN boxes
+  ...locRange('CN', 1, 8, {
+    CN01:'Sample',
+    CN02:'Sample',
+    CN03:'Tester',
+    CN04:'Tester',
+    CN05:'Tester',
+    CN06:'Tester',
+    CN07:'Tester & Sample',
+    CN08:'Tester & Sample'
+  }),
+
+  // SF boxes
+  ...locRange('SF', 1, 16, {
+    SF01:'Terminal Block 接线端子 TB',
+    SF02:'Cable assembly',
+    SF03:'Element',
+    SF04:'Nexwah Product, Module',
+    SF08:'PROJECT',
+    SF09:'Heatsink',
+    SF11:'WT Elec',
+    SF16:''
+  }),
+
+  // Other physical locations from NexStore
+  makeLoc('CB01', 'TOOLS', 'CB'),
+  makeLoc('ST', '', 'ST'),
+  makeLoc('ST01', '', 'ST'),
+  makeLoc('K1', '双排母', 'K'),
+  makeLoc('M', 'M1', 'M'),
+  makeLoc('C01', 'Carousel Items', 'C'),
+  makeLoc('BC01', 'Glass Display, Bottom Cabinet Near Entrance Door', 'BC'),
+  makeLoc('BC01-01', 'Display Glass, Bottom Cabinet Near Entrance Door', 'BC'),
+  makeLoc('PCB', 'Printed Circuit Board', 'PCB'),
+  makeLoc('PCB Board', '', 'PCB'),
+  makeLoc('TRBX01', 'CAP0402', 'TRBX'),
+  makeLoc('BX-TRCAP0402-01', 'CAP0402', 'BX'),
+  makeLoc('STENCIL', 'Stencil 钢网', 'STENCIL'),
+  makeLoc('SOLDERING STATION', 'Solder Wire', 'SOLDERING'),
+  makeLoc('DISPLAY GLASS', 'Bottom Cabinet Near Entrance Door', 'DISPLAY'),
+  makeLoc('SM_DOOR', 'LOCKED ROOM', 'ROOM'),
+  makeLoc('LOCKED ROOM', '', 'ROOM'),
+  makeLoc('WAREHOUSE', 'See photo', 'WAREHOUSE'),
+  makeLoc('CASING', '01', 'CASING'),
+  makeLoc('CASINGS', 'Glass Display, bottom left cabinet', 'CASING'),
+  makeLoc('ORANGE MINI DRAWER', '橘色小抽屉 · Silicone Gel: 7868-D', 'DRAWER'),
+  makeLoc('ORANGE DRAWER', '橘色小抽屉 · 7921-5', 'DRAWER'),
+  makeLoc('TOYOGO CABINET', 'Meeting Room Door Front · Plastic Drawer', 'DRAWER')
 ];
 
 // Component type → suggested location IDs
@@ -931,7 +1013,6 @@ function getNextBoxId() {
 function openNewBoxModal() {
   const suggested = getNextBoxId();
   document.getElementById('newBoxId').value = suggested;
-  document.getElementById('newBoxSuggest').textContent = suggested;
   document.getElementById('newBoxName').value = '';
   document.getElementById('newBoxCapacity').value = '100';
   document.getElementById('newBoxStatus').style.display = 'none';
@@ -953,7 +1034,7 @@ function confirmNewBox() {
   if (LOCATIONS.find(l => l.id === id)) { statusEl.style.display='block'; statusEl.innerHTML=`"${id}" already exists.`; statusEl.className='status-bar err'; return; }
 
   // Add to LOCATIONS array
-  LOCATIONS.push({ id, name, type: 'PB' });
+  LOCATIONS.push(makeLoc(id, name));
   locSlots[id] = [];
   locCapacity[id] = cap;
 
@@ -963,17 +1044,28 @@ function confirmNewBox() {
   closeNewBoxModal();
 }
 
+function normalizeLocText(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, '');
+}
+
 function renderLocations() {
- const search = (document.getElementById('locSearch')?.value || '').toLowerCase();
+ const searchRaw = document.getElementById('locSearch')?.value || '';
+ const search = normalizeLocText(searchRaw);
  const grid = document.getElementById('locGrid');
  if (!grid) return;
 
+ const mainTypes = ['PB','T','LB','DR','PD','SD','BX','CN','SF'];
  const filtered = LOCATIONS.filter(l => {
- const matchFilter = locFilter === 'all'
- || (locFilter === 'T0' && l.id.startsWith('T0'))
- || (locFilter !== 'T0' && l.id.startsWith(locFilter));
- const matchSearch = l.id.toLowerCase().includes(search) || l.name.toLowerCase().includes(search);
- return matchFilter && matchSearch;
+   const locType = l.type || ((l.id.match(/^[A-Z]+/) || ['OTHER'])[0]);
+   const matchFilter = locFilter === 'all'
+     || (locFilter === 'OTHER' && !mainTypes.includes(locType))
+     || locType === locFilter
+     || l.id.startsWith(locFilter);
+
+   const idText = normalizeLocText(l.id);
+   const nameText = normalizeLocText(l.name);
+   const matchSearch = !search || idText.includes(search) || nameText.includes(search);
+   return matchFilter && matchSearch;
  });
 
  const locCountEl = document.getElementById('locCount');
@@ -981,11 +1073,14 @@ function renderLocations() {
  grid.innerHTML = '';
 
  if (!filtered.length) {
- grid.innerHTML = '<div class="loc-empty-state">No locations match your search.</div>';
- return;
+   grid.innerHTML = '<div class="loc-empty-state">No locations match your search.</div>';
+   return;
  }
 
  filtered.forEach(loc => {
+  if (!locSlots[loc.id]) locSlots[loc.id] = [];
+  if (!locCapacity[loc.id]) locCapacity[loc.id] = 100;
+
   const used = usedCount(loc.id);
   const cap = getCapacity(loc.id);
   const pct = Math.min(used / cap, 1);
@@ -1006,7 +1101,7 @@ function renderLocations() {
 function setLocFilter(f, btn) {
  locFilter = f;
  document.querySelectorAll('.loc-filter-btn').forEach(b => b.classList.remove('active'));
- btn.classList.add('active');
+ if (btn) btn.classList.add('active');
  renderLocations();
 }
 
