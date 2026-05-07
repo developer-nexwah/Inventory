@@ -372,10 +372,10 @@
  </div>
  
  </div>
- <div class="table-wrap" style="display:none">
+ <div class="table-wrap" id="invResultsWrap" style="display:none">
  <table>
- <thead><tr><th>Mfr Part Number</th><th>Supplier PN</th><th>Supplier</th><th>Description</th><th>Location</th><th>Quantity</th><th>Actions</th></tr></thead>
- <tbody id="invTableBody"><tr><td colspan="7" class="empty-state">Loading&hellip;</td></tr></tbody>
+ <thead><tr><th>Mfr Part Number</th><th>Description</th><th>Location</th><th>Quantity</th><th>Nexwah PN</th></tr></thead>
+ <tbody id="invTableBody"><tr><td colspan="5" class="empty-state">Type in the search box to find inventory items.</td></tr></tbody>
  </table>
  </div>
  </div>
@@ -1332,7 +1332,7 @@ let _invCache = null; // cache last successful sheet data
 async function renderInventory() {
   const tbody = document.getElementById("invTableBody");
   if (!_invCache) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><span class="spinner"></span>Loading\u2026</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state"><span class="spinner"></span>Loading\u2026</td></tr>`;
   }
   try {
     const rows = await sheetRead();
@@ -1343,7 +1343,7 @@ async function renderInventory() {
       _renderInvRows(tbody);
       toast("Showing cached data \u2014 could not reach Google Sheets.");
     } else {
-      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">
         <div style="color:var(--error);font-weight:600;margin-bottom:6px">Could not connect to Google Sheets</div>
         <div style="color:var(--muted);font-size:12px">Check your internet connection and try again.</div>
         <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="renderInventory()">Retry</button>
@@ -1361,32 +1361,37 @@ function filterInventory() {
 
 function _renderInvRows(tbody) {
   const search = (document.getElementById("invSearch").value || "").trim().toUpperCase();
+  const resultsWrap = document.getElementById("invResultsWrap");
+
+  // Keep the inventory list hidden until the user searches.
+  if (!search) {
+    if (resultsWrap) resultsWrap.style.display = "none";
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Type in the search box to find inventory items.</td></tr>`;
+    return;
+  }
+
+  if (resultsWrap) resultsWrap.style.display = "block";
+
   let data = _invCache.slice(1).map((r,i) => ({r, origIdx: i+2}));
-  if (search) data = data.filter(({r}) =>
+  data = data.filter(({r}) =>
     r.some(cell => (cell||"").toString().toUpperCase().includes(search))
   );
   data.sort((a,b) => String(a.r[2]||"").localeCompare(String(b.r[2]||"")));
   if (!data.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No results found${search ? ' for "'+search+'"' : ''}.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No results found for "${search}".</td></tr>`;
     return;
   }
   tbody.innerHTML = data.map(({r,origIdx}) => {
     const qty=parseInt(r[4])||0; const low=qty<=5;
     const mfrPn=escQ(r[2]||""); const suppPn=escQ(r[0]||""); const supplier=escQ(r[1]||"");
     const desc=escQ(r[3]||""); const loc=escQ(r[5]||""); const updated=escQ(r[6]||"");
+    const nexwahPn = getNexwahPnValue(r[2]||"", r[5]||"");
     return `<tr class="${low?"low-stock ":""}inv-row-clickable" onclick="openDrawer(${origIdx},'${mfrPn}','${suppPn}','${supplier}','${desc}','${loc}',${qty},'${updated}')">
       <td class="mono">${r[2]||"\u2014"}</td>
-      <td class="mono">${r[0]||"\u2014"}</td>
-      <td>${r[1]||"\u2014"}</td>
       <td>${r[3]||"\u2014"}</td>
       <td class="mono">${r[5]||"\u2014"}</td>
       <td class="mono" style="font-weight:600${low?";color:var(--error)":""}">${qty}</td>
-      <td onclick="event.stopPropagation()"><div class="quick-btns">
-        <button class="btn btn-success btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${supplier}',${qty},'Receive')">+</button>
-        <button class="btn btn-danger btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${supplier}',${qty},'Use')">\u2212</button>
-        <button class="btn btn-secondary btn-sm" onclick="printLabel('${mfrPn}','${suppPn}','${desc}','${loc}','${qty}')">Print</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteInventoryRow(${origIdx},'${mfrPn}')">Remove</button>
-      </div></td>
+      <td class="mono">${nexwahPn}</td>
     </tr>`;
   }).join("");
 }
