@@ -29,11 +29,6 @@
  .page-wrap { max-width: 1100px; margin: 28px auto; padding: 0 20px; }
  .page { display: none; }
  .page.active { display: block; }
- .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
- .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
- .stat-card .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
- .stat-card .value { font-family: var(--mono); font-size: 28px; font-weight: 500; color: var(--accent); margin-top: 4px; }
- .stat-card.warn .value { color: #d97706; }
  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px 24px; margin-bottom: 18px; }
  .card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -226,8 +221,7 @@
 </div>
 
 <div class="nav">
- <button class="nav-btn active" onclick="showPage('dashboard',this)">Dashboard</button>
- <button class="nav-btn" onclick="showPage('scanner',this)">Scan Label</button>
+ <button class="nav-btn active" onclick="showPage('scanner',this)">Scan Label</button>
  <button class="nav-btn" onclick="showPage('bom',this)">Order Check</button>
  <button class="nav-btn" onclick="showPage('bulkreceive',this)">Bulk Receive</button>
  <button class="nav-btn" onclick="showPage('inventory',this)">Inventory</button>
@@ -240,31 +234,8 @@
 <div class="page-wrap">
  <div id="globalAlert"></div>
 
- <!-- DASHBOARD -->
- <div id="page-dashboard" class="page active">
- <div class="stat-grid">
- <div class="stat-card"><div class="label">Total Parts</div><div class="value" id="stat-parts">&mdash;</div></div>
- <div class="stat-card"><div class="label">Total Stock</div><div class="value" id="stat-qty">&mdash;</div></div>
- <div class="stat-card warn"><div class="label">Low Stock (&le;5)</div><div class="value" id="stat-low">&mdash;</div></div>
- <div class="stat-card"><div class="label">Transactions</div><div class="value" id="stat-tx">&mdash;</div></div>
- </div>
- <div class="card">
- <div class="card-title">Low Stock Alerts</div>
- <div id="lowStockList"><div class="empty-state">Loading&hellip;</div></div>
- </div>
- <div class="card">
- <div class="card-title">Recent Transactions</div>
- <div class="table-wrap">
- <table>
- <thead><tr><th>Time</th><th>Part (Mfr PN)</th><th>Action</th><th>Qty</th><th>New Stock</th></tr></thead>
- <tbody id="recentTxBody"><tr><td colspan="5" class="empty-state">No transactions yet.</td></tr></tbody>
- </table>
- </div>
- </div>
- </div>
-
  <!-- SCANNER -->
- <div id="page-scanner" class="page">
+ <div id="page-scanner" class="page active">
  <div class="card">
  <div class="card-title">Scan Label</div>
  <div style="display:flex;gap:0;margin-bottom:18px;border:1px solid var(--border2);border-radius:9px;overflow:hidden;width:fit-content">
@@ -1284,13 +1255,30 @@ function confirmColMapping() {
 window.addEventListener("DOMContentLoaded", () => {
  cfg.anthropicKey = localStorage.getItem("nexwah_anthropic_key") || "";
  populateAllLocationDropdowns();
- loadDashboard();
  loadSettingsPage();
+ document.getElementById("topbarStatus").textContent = "Ready";
 });
 
-function skipApiKey() { cfg.anthropicKey=""; localStorage.setItem("nexwah_skip_api","true"); document.getElementById("keyModal").style.display="none"; loadDashboard(); toast("Using free Tesseract OCR for scanning."); }
+function skipApiKey() {
+ cfg.anthropicKey="";
+ localStorage.setItem("nexwah_skip_api","true");
+ document.getElementById("keyModal").style.display="none";
+ document.getElementById("topbarStatus").textContent = "Ready";
+ toast("Using free Tesseract OCR for scanning.");
+}
 function showKeyModal() { document.getElementById("keyModal").style.display="flex"; setTimeout(()=>document.getElementById("modalKeyInput").focus(),100); }
-function saveModalKey() { const val=document.getElementById("modalKeyInput").value.trim(); if (!val.startsWith("sk-ant-")) { document.getElementById("modalError").style.display="block"; return; } cfg.anthropicKey=val; localStorage.setItem("nexwah_anthropic_key",val); document.getElementById("keyModal").style.display="none"; loadDashboard(); toast("API key saved. Welcome to NEXWAH Inventory!"); }
+function saveModalKey() {
+ const val=document.getElementById("modalKeyInput").value.trim();
+ if (!val.startsWith("sk-ant-")) {
+  document.getElementById("modalError").style.display="block";
+  return;
+ }
+ cfg.anthropicKey=val;
+ localStorage.setItem("nexwah_anthropic_key",val);
+ document.getElementById("keyModal").style.display="none";
+ document.getElementById("topbarStatus").textContent = "Ready";
+ toast("API key saved. Welcome to NEXWAH Inventory!");
+}
 
 // NAV 
 function showPage(name, btn) {
@@ -1300,7 +1288,6 @@ function showPage(name, btn) {
  if (btn) btn.classList.add("active");
  if (name==="inventory") { if (_invCache) _renderInvRows(document.getElementById("invTableBody")); else renderInventory(); }
  if (name==="transactions") renderTransactions();
- if (name==="dashboard") loadDashboard();
  if (name==="scanhistory") renderScanHistory();
  if (name==="settings") loadSettingsPage();
  if (name==="location") { populateAllLocationDropdowns(); renderLocations(); }
@@ -1355,32 +1342,6 @@ async function sheetUpdateLocation(rowIndex, location) {
   return await resp.text();
 }
 async function sheetAppendTx(row) { const url=`${APPS_SCRIPT_URL}?action=append&sheet=Transactions&row=${encodeURIComponent(JSON.stringify(row))}`; await fetch(url); }
-
-// DASHBOARD 
-async function loadDashboard() {
- document.getElementById("topbarStatus").textContent="Loading\u2026";
- ["stat-parts","stat-qty","stat-low","stat-tx"].forEach(id=>document.getElementById(id).textContent="\u2014");
- try {
- const rows=await sheetRead(); const data=rows.slice(1);
- document.getElementById("stat-parts").textContent=data.length;
- document.getElementById("stat-qty").textContent=data.reduce((s,r)=>s+(parseInt(r[4])||0),0);
- const lowStock=data.filter(r=>(parseInt(r[4])||0)<=5);
- document.getElementById("stat-low").textContent=lowStock.length;
- try {
- const txResp=await fetch(`${APPS_SCRIPT_URL}?action=read&sheet=Transactions`); const txRows=await txResp.json(); const txData=txRows.slice(1).reverse().slice(0,10);
- document.getElementById("stat-tx").textContent=txRows.length-1;
- const tbody=document.getElementById("recentTxBody");
- tbody.innerHTML=!txData.length?`<tr><td colspan="5" class="empty-state">No transactions yet.</td></tr>`:txData.map(r=>`<tr><td class="mono">${formatDate(r[0])}</td><td class="mono">${r[1]||"\u2014"}</td><td><span class="badge badge-${(r[3]||"").toLowerCase()}">${r[3]||"\u2014"}</span></td><td class="mono">${r[4]||"\u2014"}</td><td class="mono">${r[5]||"\u2014"}</td></tr>`).join("");
- } catch(e) { document.getElementById("stat-tx").textContent="\u2014"; }
- const lowEl=document.getElementById("lowStockList");
- lowEl.innerHTML=!lowStock.length?`<div class="alert alert-success">\u2713 All parts have sufficient stock.</div>`:`<div class="table-wrap"><table><thead><tr><th>Mfr Part Number</th><th>Description</th><th>Location</th><th>Stock</th></tr></thead><tbody>${lowStock.map(r=>`<tr class="low-stock"><td class="mono">${r[2]||"\u2014"}</td><td>${r[3]||"\u2014"}</td><td>${r[5]||"\u2014"}</td><td class="mono" style="font-weight:600">${r[4]||0}</td></tr>`).join("")}</tbody></table></div>`;
- document.getElementById("topbarStatus").textContent=`${data.length} parts \u00b7 ${data.reduce((s,r)=>s+(parseInt(r[4])||0),0)} units`;
- } catch(e) {
- document.getElementById("topbarStatus").textContent="\u26a0 Sheet unavailable";
- document.getElementById("lowStockList").innerHTML=`<div class="alert alert-warn">Could not connect to Google Sheets. Check your internet connection or try refreshing.<br><small style="color:var(--muted)">${e.message||""}</small></div>`;
- document.getElementById("recentTxBody").innerHTML=`<tr><td colspan="5" class="empty-state">Could not load.</td></tr>`;
- }
-}
 
 // INVENTORY
 function escQ(s) { return String(s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
