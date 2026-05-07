@@ -226,7 +226,6 @@
  <button class="nav-btn" onclick="showPage('bulkreceive',this)">Bulk Receive</button>
  <button class="nav-btn" onclick="showPage('inventory',this)">Inventory</button>
  <button class="nav-btn" onclick="showPage('location',this)">Location</button>
- <button class="nav-btn" onclick="showPage('transactions',this)">Transactions</button>
  <button class="nav-btn" onclick="showPage('scanhistory',this)">Scan History</button>
  <button class="nav-btn" onclick="showPage('settings',this)">Settings</button>
 </div>
@@ -405,23 +404,6 @@
  </div>
  </div>
  <div class="loc-grid" id="locGrid"></div>
- </div>
-
- <!-- TRANSACTIONS -->
- <div id="page-transactions" class="page">
- <div class="card">
- <div class="card-title">Transaction History</div>
- <div class="search-bar">
- <input type="text" id="txSearch" placeholder="Search transactions&hellip;" oninput="renderTransactions()" />
- <button class="btn btn-secondary" onclick="exportTransactionsCSV()">Export CSV</button>
- </div>
- </div>
- <div class="table-wrap">
- <table>
- <thead><tr><th>Date</th><th>Mfr Part Number</th><th>Supplier</th><th>Action</th><th>Qty</th><th>Old Stock</th><th>New Stock</th><th>Notes</th></tr></thead>
- <tbody id="txTableBody"><tr><td colspan="8" class="empty-state">No transactions yet.</td></tr></tbody>
- </table>
- </div>
  </div>
 
  <!-- BULK RECEIVE -->
@@ -1287,7 +1269,6 @@ function showPage(name, btn) {
  document.getElementById("page-"+name).classList.add("active");
  if (btn) btn.classList.add("active");
  if (name==="inventory") { if (_invCache) _renderInvRows(document.getElementById("invTableBody")); else renderInventory(); }
- if (name==="transactions") renderTransactions();
  if (name==="scanhistory") renderScanHistory();
  if (name==="settings") loadSettingsPage();
  if (name==="location") { populateAllLocationDropdowns(); renderLocations(); }
@@ -1562,16 +1543,6 @@ async function submitNewPart() {
 }
 
 // TRANSACTIONS 
-async function renderTransactions() {
- const search=(document.getElementById("txSearch").value||"").trim().toUpperCase(); const tbody=document.getElementById("txTableBody");
- tbody.innerHTML=`<tr><td colspan="8" class="empty-state"><span class="spinner"></span>Loading\u2026</td></tr>`;
- try {
- const resp=await fetch(`${APPS_SCRIPT_URL}?action=read&sheet=Transactions`); const rows=await resp.json(); let data=rows.slice(1).reverse();
- if (search) data=data.filter(r=>r.some(c=>(c||"").toString().toUpperCase().includes(search)));
- if (!data.length){tbody.innerHTML=`<tr><td colspan="8" class="empty-state">No transactions yet.</td></tr>`;return;}
- tbody.innerHTML=data.map(r=>`<tr><td class="mono" style="color:var(--muted)">${formatDate(r[0]||"")}</td><td class="mono">${r[1]||"\u2014"}</td><td>${r[2]||"\u2014"}</td><td><span class="badge badge-${(r[3]||"").toLowerCase()}">${r[3]||"\u2014"}</span></td><td class="mono">${r[4]||"\u2014"}</td><td class="mono">${r[5]||"\u2014"}</td><td class="mono">${r[6]||"\u2014"}</td><td style="color:var(--muted)">${r[7]||"\u2014"}</td></tr>`).join("");
- } catch(e){tbody.innerHTML=`<tr><td colspan="8" class="empty-state" style="color:var(--error)">Could not load transactions sheet.</td></tr>`;}
-}
 
 // SCAN MODE 
 let scanMode="receive";
@@ -1923,7 +1894,6 @@ function doPrint(){const printArea=document.getElementById("labelPreview").outer
 
 // CSV EXPORT 
 async function exportInventoryCSV(){try{const rows=await sheetRead();const csv=rows.map(r=>r.map(c=>`"${(c||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");downloadFile("nexwah_inventory_"+todayStr()+".csv","text/csv",csv);}catch(e){toast("Export failed: "+e.message);}}
-async function exportTransactionsCSV(){try{const resp=await fetch(`${APPS_SCRIPT_URL}?action=read&sheet=Transactions`);const rows=await resp.json();const csv=rows.map(r=>r.map(c=>`"${(c||"").toString().replace(/"/g,'""')}"`).join(",")).join("\n");downloadFile("nexwah_transactions_"+todayStr()+".csv","text/csv",csv);}catch(e){toast("Export failed: "+e.message);}}
 function downloadFile(name,type,content){const a=document.createElement("a");a.href="data:"+type+";charset=utf-8,"+encodeURIComponent(content);a.download=name;a.click();}
 
 // BOM 
