@@ -1796,15 +1796,37 @@ async function confirmScanReceiveNew(){const qty=parseInt(document.getElementByI
 // ── SCAN HISTORY — Google Drive ─────────────────────────────
 const SCAN_HISTORY_DRIVE_FOLDER = "NEXWAH Scan History";
 
-async function uploadScanImageToDrive(base64DataUrl, fileName) {
-  if (!base64DataUrl || !base64DataUrl.startsWith("data:")) throw new Error("No valid image data to upload.");
-  const payload = { action: "uploadScanImage", image: base64DataUrl, fileName: fileName || ("scan_" + Date.now() + ".jpg") };
-  const resp = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(payload) });
-  const text = await resp.text();
-  let data;
-  try { data = JSON.parse(text); } catch (e) { throw new Error("Google Drive upload returned non-JSON: " + text.slice(0, 160)); }
-  if (!data.ok || !data.url) throw new Error(data.error || "Google Drive image upload failed.");
-  return data.url;
+// Single POST: upload image to Drive AND append ScanHistory row — atomically in Apps Script.
+// Avoids the two-step (POST upload → GET append URL) race where URL could be lost.
+async function saveScanToHistory(scan) {
+  try {
+    const payload = {
+      action:     "saveScanHistory",
+      date:       scan.date       || todayStr(),
+      mfrPn:      scan.mfrPn      || "",
+      supplierPn: scan.supplierPn || "",
+      supplier:   scan.supplier   || "Unknown",
+      desc:       scan.desc       || "",
+      image:      scan.image      || "",
+      fileName:   makeScanImageFileName(scan)
+    };
+
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+
+    const text = await resp.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) { throw new Error("Bad response: " + text.slice(0, 120)); }
+    if (!data.ok) throw new Error(data.error || "Save failed.");
+
+    toast(data.hasImage ? "Scan saved ✓ (image in Google Drive)" : "Scan saved (no image captured).");
+  } catch(e) {
+    console.error("saveScanToHistory failed:", e);
+    toast("Scan history save failed: " + String(e.message || e));
+  }
 }
 
 function makeScanImageFileName(scan) {
@@ -1813,28 +1835,7 @@ function makeScanImageFileName(scan) {
   return "scan_" + pn + "_" + stamp + ".jpg";
 }
 
-async function saveScanToHistory(scan) {
-  let imageUrl = "";
-  try {
-    if (scan.image && scan.image.startsWith("data:")) {
-      imageUrl = await uploadScanImageToDrive(scan.image, makeScanImageFileName(scan));
-    }
-  } catch (imgErr) {
-    console.warn("Google Drive image upload failed:", imgErr.message);
-    imageUrl = "";
-  }
-  const row = [scan.date||todayStr(), scan.mfrPn||"", scan.supplierPn||"", scan.supplier||"Unknown", scan.desc||"", imageUrl];
-  try {
-    const url = APPS_SCRIPT_URL + "?action=append&sheet=" + encodeURIComponent(SCAN_HISTORY_SHEET) + "&row=" + encodeURIComponent(JSON.stringify(row));
-    const resp = await fetch(url);
-    const text = await resp.text();
-    if (text.trim() !== "ok") throw new Error(text);
-    toast(imageUrl ? "Scan saved to Google Drive." : "Scan saved, but image upload failed.");
-  } catch (sheetErr) {
-    console.warn("Scan history sheet save failed:", sheetErr.message);
-    toast("Scan history save failed: " + sheetErr.message);
-  }
-}
+
 
 async function loadAllScans() {
   const url = APPS_SCRIPT_URL + "?action=read&sheet=" + encodeURIComponent(SCAN_HISTORY_SHEET);
@@ -1847,21 +1848,32 @@ async function loadAllScans() {
 
 function extractDriveFileId(url) {
   const s = String(url || "");
+  // thumbnail?id=FILE_ID or uc?export=view&id=FILE_ID
   let m = s.match(/[?&]id=([^&]+)/); if (m) return decodeURIComponent(m[1]);
-  m = s.match(/\/file\/d\/([^/]+)/); if (m) return decodeURIComponent(m[1]);
+  // /file/d/FILE_ID or /d/FILE_ID
+  m = s.match(/\/file\/d\/([^/?]+)/); if (m) return decodeURIComponent(m[1]);
   m = s.match(/\/d\/([^/?]+)/); if (m) return decodeURIComponent(m[1]);
   return "";
 }
+// Primary display: thumbnail (works for logged-in Google users, no CORS issue for <img>)
+// If already a thumbnail URL, use directly. Otherwise convert.
 function scanImageDisplayUrl(url) {
   const s = String(url || "").trim(); if (!s) return "";
+  if (s.includes("drive.google.com/thumbnail")) return s; // already correct format
   const driveId = extractDriveFileId(s);
-  if (driveId) return "https://drive.google.com/thumbnail?id=" + encodeURIComponent(driveId) + "&sz=w1000";
+  if (driveId) return "https://drive.google.com/thumbnail?id=" + driveId + "&sz=w800";
   return s;
+}
+// Fallback URL tried in onerror
+function scanImageFallbackUrl(url) {
+  const driveId = extractDriveFileId(String(url || "").trim());
+  if (driveId) return "https://drive.google.com/uc?export=view&id=" + driveId;
+  return "";
 }
 function scanImageOpenUrl(url) {
   const s = String(url || "").trim(); if (!s) return "";
   const driveId = extractDriveFileId(s);
-  if (driveId) return "https://drive.google.com/file/d/" + encodeURIComponent(driveId) + "/view";
+  if (driveId) return "https://drive.google.com/file/d/" + driveId + "/view";
   return s;
 }
 
@@ -1922,7 +1934,29 @@ async function renderScanHistory() {
       imgWrap.style.cursor="zoom-in"; imgWrap.onclick=()=>openImgModalDirect(openUrl||displayUrl);
       const img=document.createElement("img"); img.src=displayUrl; img.alt="Scan image"; img.loading="lazy";
       img.style.cssText="cursor:zoom-in;width:100%;height:100%;object-fit:cover;display:block";
-      img.onerror=()=>{imgWrap.innerHTML='<div class="scan-hist-img-placeholder"><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/></svg><div style="color:#888;font-size:12px;margin-top:8px">Image link blocked</div></div>';};
+      img.onerror=()=>{
+        // Stage 1: try uc?export=view fallback
+        const fallback = scanImageFallbackUrl(imageRaw);
+        if (fallback && img.src !== fallback) {
+          img.onerror = () => {
+            // Stage 2: show placeholder with Drive link
+            const openLink = openUrl || displayUrl;
+            imgWrap.innerHTML = `<div class="scan-hist-img-placeholder" style="gap:6px">
+              <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/></svg>
+              <div style="color:#888;font-size:11px">Image not loading</div>
+              ${openLink ? `<a href="${openLink}" target="_blank" style="color:#5b9bd5;font-size:11px;font-family:var(--mono)">View in Drive ↗</a>` : ''}
+            </div>`;
+          };
+          img.src = fallback;
+        } else {
+          const openLink = openUrl || displayUrl;
+          imgWrap.innerHTML = `<div class="scan-hist-img-placeholder" style="gap:6px">
+            <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/></svg>
+            <div style="color:#888;font-size:11px">Image not loading</div>
+            ${openLink ? `<a href="${openLink}" target="_blank" style="color:#5b9bd5;font-size:11px;font-family:var(--mono)">View in Drive ↗</a>` : ''}
+          </div>`;
+        }
+      };
       imgWrap.appendChild(img);
     } else {
       imgWrap.innerHTML='<div class="scan-hist-img-placeholder"><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/><circle cx="36" cy="16" r="2" fill="#666"/></svg><div style="color:#666;font-size:11px;margin-top:8px">No image</div></div>';
