@@ -1236,7 +1236,11 @@ window.addEventListener("DOMContentLoaded", () => {
  populateAllLocationDropdowns();
  loadSettingsPage();
  document.getElementById("topbarStatus").textContent = "Ready";
-});
+ sheetRead().then(() => {
+   populateAllLocationDropdowns();
+   renderLocations();
+ }).catch(() => {});
+})
 
 function skipApiKey() {
  cfg.anthropicKey=""; localStorage.setItem("nexwah_skip_api","true");
@@ -1263,7 +1267,14 @@ function showPage(name, btn) {
  if (name==="inventory") { if (_invCache) _renderInvRows(document.getElementById("invTableBody")); else renderInventory(); }
  if (name==="scanhistory") renderScanHistory();
  if (name==="settings") loadSettingsPage();
- if (name==="location") { populateAllLocationDropdowns(); renderLocations(); }
+ if (name==="location") {
+    populateAllLocationDropdowns();
+    renderLocations();
+    sheetRead().then(() => {
+      populateAllLocationDropdowns();
+      renderLocations();
+    }).catch(() => {});
+  }
 }
 
 // ── APPS SCRIPT HELPERS ────────────────────────────────────
