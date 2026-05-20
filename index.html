@@ -497,7 +497,8 @@
 
      <!-- No API key warning -->
      <div id="mpNoKeyWarn" class="alert alert-info" style="display:none">
-       No distributor API keys set. Go to <b>Settings</b> to add your Mouser and/or DigiKey API keys for live pricing.
+       No distributor API keys set. Go to <b>Settings</b> to add your Mouser and/or DigiKey API keys for live pricing.<br>
+       <span style="font-size:11px">Keys are saved in your browser — always use this app from the same URL (GitHub Pages) so they persist.</span>
      </div>
 
      <!-- Search row -->
@@ -1038,7 +1039,7 @@ async function searchMarketPrice() {
           const dkBreaks = (dkPart.StandardPricing || []).map(pb => ({ qty: pb.BreakQuantity, price: pb.UnitPrice })).filter(pb => pb.qty > 0 && pb.price > 0);
           results.distributors.push({
             name: 'DigiKey', stock: dkPart.QuantityAvailable || 0, currency: 'USD', price_breaks: dkBreaks,
-            url: dkPart.ProductUrl || distUrls.DigiKey, in_stock: (dkPart.QuantityAvailable || 0) > 0
+            url: (dkPart.ProductUrl && !dkPart.ProductUrl.includes('?s=')) ? dkPart.ProductUrl : distUrls.DigiKey, in_stock: (dkPart.QuantityAvailable || 0) > 0
           });
         } else {
           results.distributors.push({ name: 'DigiKey', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.DigiKey, in_stock: false });
