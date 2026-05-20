@@ -893,14 +893,20 @@ async function searchMarketPrice() {
   resultsEl.style.display = 'none';
   statusEl.style.display = 'block';
   statusEl.className = 'status-bar loading';
-  statusEl.innerHTML = '<span class="spinner"></span>Searching Mouser, DigiKey and LCSC — this may take 10–20 seconds…';
+  statusEl.innerHTML = '<span class="spinner"></span>Fetching live prices from Mouser, DigiKey, LCSC…';
 
   document.getElementById('mpSearchBtn').disabled = true;
 
+  // Always build correct search URLs — never trust URLs from model
+  const pn = encodeURIComponent(partNumber);
+  const distUrls = {
+    Mouser:  `https://www.mouser.com/Search/Refine?Keyword=${pn}`,
+    DigiKey: `https://www.digikey.com/en/products/filter?keywords=${pn}`,
+    LCSC:    `https://www.lcsc.com/search?q=${pn}`
+  };
+
   try {
-    const systemPrompt = `Electronics pricing assistant. Search Mouser, DigiKey, and LCSC for the given part number. Reply ONLY with raw JSON (no markdown, no explanation):
-{"part_name":"short name","part_number":"MPN","description":"brief desc","distributors":[{"name":"Mouser","stock":0,"currency":"USD","price_breaks":[{"qty":1,"price":0.00}],"url":"","in_stock":false,"lead_time":null},{"name":"DigiKey",...},{"name":"LCSC",...}]}
-Rules: include all 3 distributors even if not found (stock:0, in_stock:false, price_breaks:[]). Convert non-USD prices to USD. Return ONLY the JSON.`;
+    const sys = `You are an electronics pricing assistant. The user will give you a part number. Use web search to find CURRENT pricing and stock from Mouser, DigiKey, and LCSC. Return ONLY a raw JSON object with no markdown or explanation: {"part_name":"short component name","part_number":"exact MPN","description":"brief description","distributors":[{"name":"Mouser","stock":12345,"currency":"USD","price_breaks":[{"qty":1,"price":0.14},{"qty":10,"price":0.09},{"qty":100,"price":0.06},{"qty":1000,"price":0.04}],"in_stock":true},{"name":"DigiKey","stock":8000,"currency":"USD","price_breaks":[{"qty":1,"price":0.15}],"in_stock":true},{"name":"LCSC","stock":50000,"currency":"USD","price_breaks":[{"qty":1,"price":0.05}],"in_stock":true}]}. Rules: include all 3 distributors even if not stocked (stock:0, in_stock:false, price_breaks:[]). Convert SGD/CNY to USD. Do NOT include url fields.`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -912,51 +918,63 @@ Rules: include all 3 distributors even if not found (stock:0, in_stock:false, pr
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
-        system: systemPrompt,
-        messages: [{ role: 'user', content: `Find current pricing and stock for part number: ${partNumber}` }]
+        max_tokens: 900,
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 1 }],
+        system: sys,
+        messages: [{ role: 'user', content: `${partNumber} price stock mouser digikey lcsc` }]
       })
     });
 
     if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err?.error?.message || 'API error ' + response.status);
+      const err = await response.json().catch(() => ({}));
+      const msg = err?.error?.message || '';
+      if (msg.includes('rate limit')) throw new Error('Rate limit hit — wait 60 seconds and try again.');
+      throw new Error(msg || 'API error ' + response.status);
     }
 
     const data = await response.json();
-
-    // Extract the final text block (Claude's answer after searching)
-    const textBlocks = (data.content || []).filter(b => b.type === 'text').map(b => b.text);
-    const rawText = textBlocks.join('').trim();
-
-    // Strip any accidental markdown fences
+    const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
     const cleaned = rawText.replace(/```json|```/g, '').trim();
 
     let parsed;
     try {
       parsed = JSON.parse(cleaned);
     } catch (e) {
-      // Try to find JSON object within the text
-      const match = cleaned.match(/\{[\s\S]*\}/);
-      if (match) {
-        parsed = JSON.parse(match[0]);
-      } else {
-        throw new Error('Could not parse pricing data. Try again.');
-      }
+      const start = cleaned.indexOf('{'), end = cleaned.lastIndexOf('}');
+      if (start === -1 || end <= start) throw new Error('No pricing data in response. Try again.');
+      parsed = JSON.parse(cleaned.slice(start, end + 1));
     }
+
+    // Always override URLs with our correctly constructed search links
+    parsed.distributors = (parsed.distributors || []).map(d => ({
+      ...d,
+      url: distUrls[d.name] || distUrls.Mouser
+    }));
+
+    // Ensure all 3 distributors are present
+    ['Mouser','DigiKey','LCSC'].forEach(name => {
+      if (!parsed.distributors.find(d => d.name === name)) {
+        parsed.distributors.push({ name, stock: 0, currency: 'USD', price_breaks: [], url: distUrls[name], in_stock: false });
+      }
+    });
 
     mpCurrentData = parsed;
     mpCurrentQty = 1;
     document.querySelectorAll('.mp-qty-btn').forEach((b,i) => b.classList.toggle('active-qty', i===0));
-
     renderMpResults(parsed);
     statusEl.style.display = 'none';
     resultsEl.style.display = 'block';
 
   } catch (e) {
-    statusEl.innerHTML = '⚠ ' + (e.message || 'Search failed. Check your API key and try again.');
-    statusEl.className = 'status-bar err';
+    // On any error, show links-only fallback so user can still check prices manually
+    const msg = e.message || 'Lookup failed.';
+    const isRateLimit = msg.toLowerCase().includes('rate limit');
+    statusEl.innerHTML = `<b>${isRateLimit ? 'Rate limit — wait 60s and retry.' : msg}</b><br>` +
+      `<span style='font-size:12px'>You can still check prices directly:</span> ` +
+      Object.entries(distUrls).map(([name, url]) =>
+        `<a href='${url}' target='_blank' rel='noopener' style='margin-left:8px;color:var(--accent);font-family:var(--mono);font-size:12px'>${name} ↗</a>`
+      ).join('');
+    statusEl.className = 'status-bar ' + (isRateLimit ? 'warn' : 'err');
   } finally {
     document.getElementById('mpSearchBtn').disabled = false;
   }
@@ -996,7 +1014,7 @@ function renderMpResults(data) {
     </div>` : ''}
   `;
 
-  document.getElementById('mpLastUpdated').textContent = 'Prices fetched: ' + new Date().toLocaleString();
+  document.getElementById('mpLastUpdated').textContent = 'Live prices fetched: ' + new Date().toLocaleString() + ' — click View to open distributor page';
   renderMpDistCards(data);
 }
 
