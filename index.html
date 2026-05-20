@@ -496,8 +496,8 @@
      <div class="card-title">Market Price &mdash; Live Distributor Comparison</div>
 
      <!-- No API key warning -->
-     <div id="mpNoKeyWarn" class="alert alert-warn" style="display:none">
-       No Anthropic API key set. Go to <b>Settings</b> and enter your key to use Market Price.
+     <div id="mpNoKeyWarn" class="alert alert-info" style="display:none">
+       No distributor API keys set. Go to <b>Settings</b> to add your Mouser and/or DigiKey API keys for live pricing.
      </div>
 
      <!-- Search row -->
@@ -561,16 +561,79 @@
  <div id="page-settings" class="page">
  <div class="card">
  <div class="card-title">Settings</div>
- <div style="margin-bottom:24px">
- <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">Anthropic API Key (Claude Vision)</div>
- <div id="apiKeyStatus" style="margin-bottom:12px"></div>
+
+ <!-- Anthropic -->
+ <div style="margin-bottom:22px">
+ <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Anthropic API Key <span style="font-size:11px;color:var(--muted);font-weight:400">(Claude Vision label scanning)</span></div>
+ <div id="apiKeyStatus" style="margin-bottom:10px"></div>
  <div class="field" style="max-width:500px"><label>API Key</label><input type="password" id="settingsApiKey" placeholder="sk-ant-api03-..." style="font-family:var(--mono);font-size:13px" /></div>
  <div class="btn-row">
  <button class="btn btn-primary" onclick="saveSettingsKey()">Save Key</button>
  <button class="btn btn-danger" onclick="removeSettingsKey()">Remove Key</button>
  </div>
- <div id="settingsKeyMsg" class="status-bar" style="margin-top:14px;display:none"></div>
+ <div id="settingsKeyMsg" class="status-bar" style="margin-top:10px;display:none"></div>
  </div>
+
+ <!-- Distributor API Keys -->
+ <div style="border-top:1px solid var(--border);padding-top:18px;margin-bottom:22px">
+ <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Market Price — Distributor API Keys</div>
+ <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
+   Get keys free at:
+   <a href="https://www.mouser.com/api-hub/" target="_blank" style="color:var(--accent)">Mouser API Hub</a> &nbsp;&middot;&nbsp;
+   <a href="https://developer.digikey.com/" target="_blank" style="color:var(--accent)">DigiKey Developer Portal</a> &nbsp;&middot;&nbsp;
+   LCSC has no public API (will show search link only)
+ </div>
+
+ <div style="display:flex;flex-direction:column;gap:14px;max-width:540px">
+   <!-- Mouser -->
+   <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+       <div style="font-size:13px;font-weight:700;color:#15803d">Mouser</div>
+       <div id="mouserKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
+     </div>
+     <div class="field"><label>API Key</label><input type="password" id="settingsMouserKey" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="font-family:var(--mono);font-size:12px" /></div>
+     <div class="btn-row" style="margin-top:10px">
+       <button class="btn btn-primary btn-sm" onclick="saveDistKey('mouser')">Save</button>
+       <button class="btn btn-danger btn-sm" onclick="removeDistKey('mouser')">Remove</button>
+     </div>
+   </div>
+
+   <!-- DigiKey -->
+   <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+       <div style="font-size:13px;font-weight:700;color:#1d4ed8">DigiKey</div>
+       <div id="digikeyKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
+     </div>
+     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+       <div class="field"><label>Client ID</label><input type="password" id="settingsDkClientId" placeholder="Client ID" style="font-family:var(--mono);font-size:12px" /></div>
+       <div class="field"><label>Client Secret</label><input type="password" id="settingsDkSecret" placeholder="Client Secret" style="font-family:var(--mono);font-size:12px" /></div>
+     </div>
+     <div class="btn-row" style="margin-top:10px">
+       <button class="btn btn-primary btn-sm" onclick="saveDistKey('digikey')">Save</button>
+       <button class="btn btn-danger btn-sm" onclick="removeDistKey('digikey')">Remove</button>
+     </div>
+   </div>
+
+   <!-- LCSC -->
+   <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+       <div style="font-size:13px;font-weight:700;color:#c2410c">LCSC</div>
+       <div id="lcscKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
+     </div>
+     <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">
+       Get your API key from <a href="https://www.lcsc.com/faqs/api" target="_blank" style="color:var(--accent)">lcsc.com/faqs/api</a> &mdash; requires a business/agent account. The API uses HMAC-SHA256 signed requests.
+     </div>
+     <div class="field"><label>API Key</label><input type="password" id="settingsLcscKey" placeholder="LCSC API key" style="font-family:var(--mono);font-size:12px" /></div>
+     <div class="field" style="margin-top:10px"><label>API Secret</label><input type="password" id="settingsLcscSecret" placeholder="LCSC API secret (for HMAC signing)" style="font-family:var(--mono);font-size:12px" /></div>
+     <div class="btn-row" style="margin-top:10px">
+       <button class="btn btn-primary btn-sm" onclick="saveDistKey('lcsc')">Save</button>
+       <button class="btn btn-danger btn-sm" onclick="removeDistKey('lcsc')">Remove</button>
+     </div>
+   </div>
+ </div>
+ <div id="distKeyMsg" class="status-bar" style="margin-top:12px;display:none"></div>
+ </div>
+
  <div style="border-top:1px solid var(--border);padding-top:18px">
  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">Current Status</div>
  <div id="settingsStatus" style="font-size:13px;color:var(--muted);line-height:2"></div>
@@ -846,7 +909,7 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfw6qOsjA0wiKn
 const SCAN_HISTORY_SHEET = "ScanHistory";
 const MAX_IMAGE_SIZE = 600;
 
-let cfg = { sheetName: "Sheet1", anthropicKey: "" };
+let cfg = { sheetName: "Sheet1", anthropicKey: "", mouserKey: "", dkClientId: "", dkSecret: "", lcscKey: "", lcscSecret: "" };
 let currentStream = null;
 let currentScan = null;
 const SCAN_REGION = { x: 0.10, y: 0.15, w: 0.80, h: 0.70 };
@@ -869,6 +932,14 @@ function setMpQty(qty, btn) {
   if (mpCurrentData) renderMpDistCards(mpCurrentData);
 }
 
+// HMAC-SHA256 helper using WebCrypto (browser built-in, no library needed)
+async function hmacSha256Hex(secret, message) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
+  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
 async function searchMarketPrice() {
   const partNumber = document.getElementById('mpSearchInput').value.trim();
   const statusEl = document.getElementById('mpStatus');
@@ -882,22 +953,16 @@ async function searchMarketPrice() {
     return;
   }
 
-  if (!cfg.anthropicKey) {
+  if (!cfg.mouserKey && !cfg.dkClientId && !cfg.lcscKey) {
     noKeyWarn.style.display = 'block';
     statusEl.style.display = 'none';
-    resultsEl.style.display = 'none';
     return;
   }
-
   noKeyWarn.style.display = 'none';
+
   resultsEl.style.display = 'none';
   statusEl.style.display = 'block';
   statusEl.className = 'status-bar loading';
-  statusEl.innerHTML = '<span class="spinner"></span>Fetching live prices from Mouser, DigiKey, LCSC…';
-
-  document.getElementById('mpSearchBtn').disabled = true;
-
-  // Always build correct search URLs — never trust URLs from model
   const pn = encodeURIComponent(partNumber);
   const distUrls = {
     Mouser:  `https://www.mouser.com/Search/Refine?Keyword=${pn}`,
@@ -905,76 +970,137 @@ async function searchMarketPrice() {
     LCSC:    `https://www.lcsc.com/search?q=${pn}`
   };
 
+  statusEl.style.display = 'block';
+  statusEl.innerHTML = '<span class="spinner"></span>Fetching live prices…';
+  statusEl.className = 'status-bar loading';
+  document.getElementById('mpSearchBtn').disabled = true;
+
+  const results = { part_name: '', part_number: partNumber, description: '', distributors: [] };
+
   try {
-    const sys = `You are an electronics pricing assistant. The user will give you a part number. Use web search to find CURRENT pricing and stock from Mouser, DigiKey, and LCSC. Return ONLY a raw JSON object with no markdown or explanation: {"part_name":"short component name","part_number":"exact MPN","description":"brief description","distributors":[{"name":"Mouser","stock":12345,"currency":"USD","price_breaks":[{"qty":1,"price":0.14},{"qty":10,"price":0.09},{"qty":100,"price":0.06},{"qty":1000,"price":0.04}],"in_stock":true},{"name":"DigiKey","stock":8000,"currency":"USD","price_breaks":[{"qty":1,"price":0.15}],"in_stock":true},{"name":"LCSC","stock":50000,"currency":"USD","price_breaks":[{"qty":1,"price":0.05}],"in_stock":true}]}. Rules: include all 3 distributors even if not stocked (stock:0, in_stock:false, price_breaks:[]). Convert SGD/CNY to USD. Do NOT include url fields.`;
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': cfg.anthropicKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 900,
-        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 1 }],
-        system: sys,
-        messages: [{ role: 'user', content: `${partNumber} price stock mouser digikey lcsc` }]
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      const msg = err?.error?.message || '';
-      if (msg.includes('rate limit')) throw new Error('Rate limit hit — wait 60 seconds and try again.');
-      throw new Error(msg || 'API error ' + response.status);
-    }
-
-    const data = await response.json();
-    const rawText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
-    const cleaned = rawText.replace(/```json|```/g, '').trim();
-
-    let parsed;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch (e) {
-      const start = cleaned.indexOf('{'), end = cleaned.lastIndexOf('}');
-      if (start === -1 || end <= start) throw new Error('No pricing data in response. Try again.');
-      parsed = JSON.parse(cleaned.slice(start, end + 1));
-    }
-
-    // Always override URLs with our correctly constructed search links
-    parsed.distributors = (parsed.distributors || []).map(d => ({
-      ...d,
-      url: distUrls[d.name] || distUrls.Mouser
-    }));
-
-    // Ensure all 3 distributors are present
-    ['Mouser','DigiKey','LCSC'].forEach(name => {
-      if (!parsed.distributors.find(d => d.name === name)) {
-        parsed.distributors.push({ name, stock: 0, currency: 'USD', price_breaks: [], url: distUrls[name], in_stock: false });
+    // ── MOUSER ──────────────────────────────────────────────
+    const mouserKey = cfg.mouserKey;
+    if (mouserKey) {
+      statusEl.innerHTML = '<span class="spinner"></span>Querying Mouser API…';
+      try {
+        const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${mouserKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ SearchByKeywordRequest: { keyword: partNumber, records: 1, startingRecord: 0, searchOptions: 'InStock', searchWithSPNsFirst: 'N' } })
+        });
+        const mData = await mResp.json();
+        const mErrors = mData?.Errors || [];
+        if (mErrors.length) throw new Error('Mouser: ' + mErrors[0].Message);
+        const mParts = mData?.SearchResults?.Parts || [];
+        const mPart = mParts[0];
+        if (mPart) {
+          if (!results.part_name) results.part_name = (mPart.Manufacturer || '') + ' ' + (mPart.ManufacturerPartNumber || '');
+          if (!results.description) results.description = mPart.Description || '';
+          const mBreaks = (mPart.PriceBreaks || []).map(pb => ({
+            qty: parseInt(pb.Quantity), price: parseFloat((pb.Price || '0').replace(/[^0-9.]/g,''))
+          })).filter(pb => pb.qty > 0 && pb.price > 0);
+          const mStock = parseInt((mPart.Availability || '').replace(/[^0-9]/g,'') || '0');
+          results.distributors.push({
+            name: 'Mouser', stock: mStock, currency: 'USD', price_breaks: mBreaks,
+            url: mPart.ProductDetailUrl ? 'https://www.mouser.com' + mPart.ProductDetailUrl : distUrls.Mouser,
+            in_stock: mStock > 0
+          });
+        } else {
+          results.distributors.push({ name: 'Mouser', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.Mouser, in_stock: false });
+        }
+      } catch(e) {
+        results.distributors.push({ name: 'Mouser', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.Mouser, in_stock: false, error: e.message });
       }
-    });
+    } else {
+      results.distributors.push({ name: 'Mouser', stock: null, currency: 'USD', price_breaks: [], url: distUrls.Mouser, in_stock: false, noKey: true });
+    }
 
-    mpCurrentData = parsed;
+    // ── DIGIKEY ───────────────────────────────────────────
+    const dkClientId = cfg.dkClientId, dkSecret = cfg.dkSecret;
+    if (dkClientId && dkSecret) {
+      statusEl.innerHTML = '<span class="spinner"></span>Querying DigiKey API…';
+      try {
+        const tokenResp = await fetch('https://api.digikey.com/v1/oauth2/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `grant_type=client_credentials&client_id=${encodeURIComponent(dkClientId)}&client_secret=${encodeURIComponent(dkSecret)}`
+        });
+        const tokenData = await tokenResp.json();
+        const token = tokenData.access_token;
+        if (!token) throw new Error(tokenData.error_description || 'DigiKey auth failed');
+        const dkResp = await fetch(`https://api.digikey.com/Search/v3/Products/${encodeURIComponent(partNumber)}`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'X-DIGIKEY-Client-Id': dkClientId, 'X-DIGIKEY-Locale-Site': 'SG', 'X-DIGIKEY-Locale-Currency': 'USD' }
+        });
+        const dkData = await dkResp.json();
+        const dkPart = dkData?.Product;
+        if (dkPart) {
+          if (!results.description && dkPart.Description?.ProductDescription) results.description = dkPart.Description.ProductDescription;
+          const dkBreaks = (dkPart.StandardPricing || []).map(pb => ({ qty: pb.BreakQuantity, price: pb.UnitPrice })).filter(pb => pb.qty > 0 && pb.price > 0);
+          results.distributors.push({
+            name: 'DigiKey', stock: dkPart.QuantityAvailable || 0, currency: 'USD', price_breaks: dkBreaks,
+            url: dkPart.ProductUrl || distUrls.DigiKey, in_stock: (dkPart.QuantityAvailable || 0) > 0
+          });
+        } else {
+          results.distributors.push({ name: 'DigiKey', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.DigiKey, in_stock: false });
+        }
+      } catch(e) {
+        results.distributors.push({ name: 'DigiKey', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.DigiKey, in_stock: false, error: e.message });
+      }
+    } else {
+      results.distributors.push({ name: 'DigiKey', stock: null, currency: 'USD', price_breaks: [], url: distUrls.DigiKey, in_stock: false, noKey: true });
+    }
+
+    // ── LCSC ────────────────────────────────────────────────────────────────────
+    const lcscKey = cfg.lcscKey, lcscSecret = cfg.lcscSecret;
+    if (lcscKey && lcscSecret) {
+      statusEl.innerHTML = '<span class="spinner"></span>Querying LCSC API…';
+      try {
+        const lcscNonce = Math.random().toString(36).substring(2,18).padEnd(16,'0').slice(0,16);
+        const lcscTs = String(Date.now());
+        const msgToSign = lcscKey + lcscNonce + lcscTs;
+        const lcscSig = await hmacSha256Hex(lcscSecret, msgToSign);
+        const lcscParams = new URLSearchParams({
+          key: lcscKey, nonce: lcscNonce, signature: lcscSig, timestamp: lcscTs,
+          keyword: partNumber, match_type: 'exact', current_page: '1', page_size: '5',
+          is_available: 'false', currency: 'USD'
+        });
+        const lcscResp = await fetch('https://ips.lcsc.com/rest/wmsc2agent/search/product?' + lcscParams.toString());
+        const lcscData = await lcscResp.json();
+        const lcscParts = lcscData?.result?.list || lcscData?.data?.list || lcscData?.list || [];
+        const lcscPart = lcscParts[0];
+        if (lcscPart) {
+          if (!results.description && lcscPart.productIntroEn) results.description = lcscPart.productIntroEn;
+          const lcscRawBreaks = lcscPart.prices || lcscPart.priceList || [];
+          const lcscBreaks = lcscRawBreaks.map(pb => ({
+            qty: parseInt(pb.ladder || pb.quantity || pb.startNumber || 1),
+            price: parseFloat(pb.usdPrice || pb.price || 0)
+          })).filter(pb => pb.qty > 0 && pb.price > 0);
+          const lcscStock = parseInt(lcscPart.stockNumber || lcscPart.stock || 0);
+          results.distributors.push({
+            name: 'LCSC', stock: lcscStock, currency: 'USD', price_breaks: lcscBreaks,
+            url: lcscPart.productUrl ? 'https://www.lcsc.com' + lcscPart.productUrl : distUrls.LCSC,
+            in_stock: lcscStock > 0
+          });
+        } else {
+          results.distributors.push({ name: 'LCSC', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.LCSC, in_stock: false });
+        }
+      } catch(e) {
+        results.distributors.push({ name: 'LCSC', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.LCSC, in_stock: false, error: e.message });
+      }
+    } else {
+      results.distributors.push({ name: 'LCSC', stock: null, currency: 'USD', price_breaks: [], url: distUrls.LCSC, in_stock: false, noKey: true });
+    }
+
+    mpCurrentData = results;
     mpCurrentQty = 1;
     document.querySelectorAll('.mp-qty-btn').forEach((b,i) => b.classList.toggle('active-qty', i===0));
-    renderMpResults(parsed);
+    renderMpResults(results);
     statusEl.style.display = 'none';
     resultsEl.style.display = 'block';
 
   } catch (e) {
-    // On any error, show links-only fallback so user can still check prices manually
-    const msg = e.message || 'Lookup failed.';
-    const isRateLimit = msg.toLowerCase().includes('rate limit');
-    statusEl.innerHTML = `<b>${isRateLimit ? 'Rate limit — wait 60s and retry.' : msg}</b><br>` +
-      `<span style='font-size:12px'>You can still check prices directly:</span> ` +
-      Object.entries(distUrls).map(([name, url]) =>
-        `<a href='${url}' target='_blank' rel='noopener' style='margin-left:8px;color:var(--accent);font-family:var(--mono);font-size:12px'>${name} ↗</a>`
-      ).join('');
-    statusEl.className = 'status-bar ' + (isRateLimit ? 'warn' : 'err');
+    statusEl.innerHTML = '&#9888; ' + (e.message || 'Lookup failed.');
+    statusEl.className = 'status-bar err';
   } finally {
     document.getElementById('mpSearchBtn').disabled = false;
   }
@@ -1043,11 +1169,15 @@ function renderMpDistCards(data) {
     const isBest = priceHere !== null && bestPriceAtQty !== null && priceHere === bestPriceAtQty && dist.in_stock;
     const color = distColors[dist.name] || 'var(--accent)';
 
-    const stockStr = dist.stock === null || dist.stock === undefined
-      ? 'Stock unknown'
-      : dist.stock === 0
-        ? 'Out of stock'
-        : dist.stock.toLocaleString() + ' in stock';
+    const stockStr = dist.noApi
+      ? 'No public API'
+      : dist.noKey
+        ? 'Set API key in Settings'
+        : dist.stock === null || dist.stock === undefined
+          ? 'Stock unknown'
+          : dist.stock === 0
+            ? 'Out of stock'
+            : dist.stock.toLocaleString() + ' in stock';
     const stockClass = !dist.in_stock ? 'out' : dist.stock > 500 ? 'in' : 'low';
 
     const priceBreaksHtml = (dist.price_breaks || []).length === 0
@@ -1062,6 +1192,10 @@ function renderMpDistCards(data) {
           </div>`;
         }).join('');
 
+    let statusNote = '';
+    if (dist.noApi) statusNote = '<div style="font-size:11px;color:var(--muted);margin-top:4px">No public API</div>';
+    else if (dist.noKey) statusNote = '<div style="font-size:11px;color:var(--warn);margin-top:4px">API key not set — go to Settings</div>';
+    else if (dist.error) statusNote = `<div style="font-size:11px;color:var(--error);margin-top:4px">${escHtml(dist.error)}</div>`;
     const linkHtml = dist.url
       ? `<a href="${escHtml(dist.url)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm mp-dist-link">View ↗</a>`
       : '<span class="mp-na">No link</span>';
@@ -1074,6 +1208,7 @@ function renderMpDistCards(data) {
             ${isBest ? '<span class="mp-best-badge">Best Price</span>' : ''}
           </div>
           <div class="mp-dist-stock ${stockClass}">${stockStr}</div>
+          ${statusNote}
           ${dist.lead_time ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;font-family:var(--mono)">Lead time: ${escHtml(dist.lead_time)}</div>` : ''}
         </div>
         <div class="mp-price-breaks">${priceBreaksHtml}</div>
@@ -2267,6 +2402,35 @@ function loadSettingsPage() {
 }
 function saveSettingsKey(){const val=document.getElementById("settingsApiKey").value.trim();const msgEl=document.getElementById("settingsKeyMsg");if(!val.startsWith("sk-ant-")){msgEl.style.display="block";msgEl.innerHTML="Key must start with sk-ant-";msgEl.className="status-bar err";return;}cfg.anthropicKey=val;localStorage.setItem("nexwah_anthropic_key",val);msgEl.style.display="block";msgEl.innerHTML="✓ Key saved.";msgEl.className="status-bar ok";toast("API key saved.");loadSettingsPage();}
 function removeSettingsKey(){cfg.anthropicKey="";localStorage.removeItem("nexwah_anthropic_key");document.getElementById("settingsApiKey").value="";const msgEl=document.getElementById("settingsKeyMsg");msgEl.style.display="block";msgEl.innerHTML="Key removed.";msgEl.className="status-bar warn";toast("API key removed.");loadSettingsPage();}
+function saveDistKey(dist) {
+  const msgEl=document.getElementById("distKeyMsg"); msgEl.style.display="block";
+  if (dist==="mouser") {
+    const val=document.getElementById("settingsMouserKey").value.trim();
+    if (!val) { msgEl.innerHTML="Enter a Mouser API key."; msgEl.className="status-bar err"; return; }
+    cfg.mouserKey=val; localStorage.setItem("nexwah_mouser_key",val);
+    msgEl.innerHTML="&#x2713; Mouser key saved."; msgEl.className="status-bar ok"; toast("Mouser API key saved.");
+  } else if (dist==="digikey") {
+    const id=document.getElementById("settingsDkClientId").value.trim(), sec=document.getElementById("settingsDkSecret").value.trim();
+    if (!id||!sec) { msgEl.innerHTML="Enter both Client ID and Client Secret."; msgEl.className="status-bar err"; return; }
+    cfg.dkClientId=id; cfg.dkSecret=sec;
+    localStorage.setItem("nexwah_dk_client_id",id); localStorage.setItem("nexwah_dk_secret",sec);
+    msgEl.innerHTML="&#x2713; DigiKey credentials saved."; msgEl.className="status-bar ok"; toast("DigiKey credentials saved.");
+  } else if (dist==="lcsc") {
+    const k=document.getElementById("settingsLcscKey").value.trim(), s=document.getElementById("settingsLcscSecret").value.trim();
+    if (!k||!s) { msgEl.innerHTML="Enter both API Key and Secret."; msgEl.className="status-bar err"; return; }
+    cfg.lcscKey=k; cfg.lcscSecret=s;
+    localStorage.setItem("nexwah_lcsc_key",k); localStorage.setItem("nexwah_lcsc_secret",s);
+    msgEl.innerHTML="&#x2713; LCSC credentials saved."; msgEl.className="status-bar ok"; toast("LCSC credentials saved.");
+  }
+  loadSettingsPage();
+}
+function removeDistKey(dist) {
+  const msgEl=document.getElementById("distKeyMsg"); msgEl.style.display="block";
+  if (dist==="mouser") { cfg.mouserKey=""; localStorage.removeItem("nexwah_mouser_key"); document.getElementById("settingsMouserKey").value=""; msgEl.innerHTML="Mouser key removed."; msgEl.className="status-bar warn"; toast("Mouser key removed."); }
+  else if (dist==="digikey") { cfg.dkClientId=""; cfg.dkSecret=""; localStorage.removeItem("nexwah_dk_client_id"); localStorage.removeItem("nexwah_dk_secret"); document.getElementById("settingsDkClientId").value=""; document.getElementById("settingsDkSecret").value=""; msgEl.innerHTML="DigiKey credentials removed."; msgEl.className="status-bar warn"; toast("DigiKey credentials removed."); }
+  else if (dist==="lcsc") { cfg.lcscKey=""; cfg.lcscSecret=""; localStorage.removeItem("nexwah_lcsc_key"); localStorage.removeItem("nexwah_lcsc_secret"); document.getElementById("settingsLcscKey").value=""; document.getElementById("settingsLcscSecret").value=""; msgEl.innerHTML="LCSC credentials removed."; msgEl.className="status-bar warn"; toast("LCSC credentials removed."); }
+  loadSettingsPage();
+}
 
 // ── PRINT LABEL ────────────────────────────────────────────
 function printLabel(mfrPn,suppPn,desc,location,qty){document.getElementById("lblMfrPn").textContent=mfrPn||"";document.getElementById("lblSuppPn").textContent=suppPn||"";document.getElementById("lblDesc").textContent=desc||"";document.getElementById("lblLoc").textContent=location||"—";document.getElementById("lblQty").textContent="QTY: "+(qty||0);document.getElementById("lblDate").textContent=new Date().toLocaleDateString();document.getElementById("printLocInput").value=location||"";document.getElementById("printQtyInput").value=qty||"";document.getElementById("printModal").style.display="flex";}
