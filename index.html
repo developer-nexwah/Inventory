@@ -898,62 +898,9 @@ async function searchMarketPrice() {
   document.getElementById('mpSearchBtn').disabled = true;
 
   try {
-    const systemPrompt = `You are an electronics component pricing assistant. The user will give you a part number. Search Mouser, DigiKey, and LCSC for current pricing and stock availability.
-
-After searching, respond with ONLY a valid JSON object — no markdown, no explanation, no extra text. Use exactly this structure:
-{
-  "part_name": "short component name e.g. 100nF MLCC 0402",
-  "part_number": "the exact MPN searched",
-  "description": "full description from datasheet or distributor",
-  "distributors": [
-    {
-      "name": "Mouser",
-      "stock": 12500,
-      "currency": "USD",
-      "price_breaks": [
-        {"qty": 1, "price": 0.12},
-        {"qty": 10, "price": 0.09},
-        {"qty": 100, "price": 0.06},
-        {"qty": 1000, "price": 0.04}
-      ],
-      "url": "https://www.mouser.com/...",
-      "in_stock": true,
-      "lead_time": null
-    },
-    {
-      "name": "DigiKey",
-      "stock": 8000,
-      "currency": "USD",
-      "price_breaks": [
-        {"qty": 1, "price": 0.13},
-        {"qty": 10, "price": 0.10},
-        {"qty": 100, "price": 0.07},
-        {"qty": 1000, "price": 0.045}
-      ],
-      "url": "https://www.digikey.com/...",
-      "in_stock": true,
-      "lead_time": null
-    },
-    {
-      "name": "LCSC",
-      "stock": 50000,
-      "currency": "USD",
-      "price_breaks": [
-        {"qty": 1, "price": 0.05},
-        {"qty": 10, "price": 0.04},
-        {"qty": 100, "price": 0.03},
-        {"qty": 1000, "price": 0.02}
-      ],
-      "url": "https://www.lcsc.com/...",
-      "in_stock": true,
-      "lead_time": null
-    }
-  ]
-}
-
-If a distributor does not carry the part or you cannot find pricing, still include that distributor with stock: 0, in_stock: false, and empty price_breaks: [].
-If prices are in a different currency on a site (e.g. CNY on LCSC), convert to USD and set currency: "USD".
-Return ONLY the JSON. No markdown fences. No extra words.`;
+    const systemPrompt = `Electronics pricing assistant. Search Mouser, DigiKey, and LCSC for the given part number. Reply ONLY with raw JSON (no markdown, no explanation):
+{"part_name":"short name","part_number":"MPN","description":"brief desc","distributors":[{"name":"Mouser","stock":0,"currency":"USD","price_breaks":[{"qty":1,"price":0.00}],"url":"","in_stock":false,"lead_time":null},{"name":"DigiKey",...},{"name":"LCSC",...}]}
+Rules: include all 3 distributors even if not found (stock:0, in_stock:false, price_breaks:[]). Convert non-USD prices to USD. Return ONLY the JSON.`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -966,7 +913,7 @@ Return ONLY the JSON. No markdown fences. No extra words.`;
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
         system: systemPrompt,
         messages: [{ role: 'user', content: `Find current pricing and stock for part number: ${partNumber}` }]
       })
@@ -1770,7 +1717,7 @@ function _renderInvRows(tbody) {
         <button class="btn btn-success btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${source}',${qty},'Receive')">+</button>
         <button class="btn btn-danger btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${source}',${qty},'Use')">−</button>
         <button class="btn btn-secondary btn-sm" onclick="printLabel('${mfrPn}','','${desc}','${rowVal}',${qty})">Print</button>
-        <button class="btn btn-secondary btn-sm" onclick="mpFromInventory('${mfrPn}')">💹 Price</button>
+        <button class="btn btn-secondary btn-sm" onclick="mpFromInventory('${mfrPn}')">Price</button>
         <button class="btn btn-danger btn-sm" onclick="deleteInventoryRow(${origIdx},'${mfrPn}')">Remove</button>
       </div></td>
     </tr>`;
