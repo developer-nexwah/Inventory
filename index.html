@@ -967,7 +967,7 @@ async function searchMarketPrice() {
   const pn = encodeURIComponent(partNumber);
   const distUrls = {
     Mouser:  `https://www.mouser.com/Search/Refine?Keyword=${pn}`,
-    DigiKey: `https://www.digikey.com/en/products/filter?keywords=${pn}`,
+    DigiKey: `https://www.digikey.com/en/products/result?keywords=${pn}`,
     LCSC:    `https://www.lcsc.com/search?q=${pn}`
   };
 
@@ -1039,7 +1039,7 @@ async function searchMarketPrice() {
           const dkBreaks = (dkPart.StandardPricing || []).map(pb => ({ qty: pb.BreakQuantity, price: pb.UnitPrice })).filter(pb => pb.qty > 0 && pb.price > 0);
           results.distributors.push({
             name: 'DigiKey', stock: dkPart.QuantityAvailable || 0, currency: 'USD', price_breaks: dkBreaks,
-            url: (dkPart.ProductUrl && !dkPart.ProductUrl.includes('?s=')) ? dkPart.ProductUrl : distUrls.DigiKey, in_stock: (dkPart.QuantityAvailable || 0) > 0
+            url: distUrls.DigiKey, in_stock: (dkPart.QuantityAvailable || 0) > 0
           });
         } else {
           results.distributors.push({ name: 'DigiKey', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.DigiKey, in_stock: false });
