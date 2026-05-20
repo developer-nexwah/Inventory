@@ -211,6 +211,64 @@
  .slot-preview-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); }
  .slot-preview-value { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--accent); }
  .add-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+
+ /* ── MARKET PRICE STYLES ── */
+ .mp-search-row { display: flex; gap: 10px; margin-bottom: 18px; }
+ .mp-search-row input {
+   flex: 1; padding: 10px 14px; border: 1px solid var(--border2); border-radius: 8px;
+   font-family: var(--mono); font-size: 14px; color: var(--text); background: var(--surface);
+   outline: none; transition: border-color 0.15s;
+ }
+ .mp-search-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,86,219,0.08); }
+ .mp-search-row input::placeholder { color: var(--muted); font-size: 13px; }
+ .mp-quick-parts { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+ .mp-quick-part {
+   font-family: var(--mono); font-size: 11px; padding: 4px 10px;
+   border-radius: 6px; border: 1px solid var(--border2); background: var(--surface);
+   color: var(--muted); cursor: pointer; transition: all 0.15s;
+ }
+ .mp-quick-part:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+ .mp-part-header {
+   background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+   padding: 16px 20px; margin-bottom: 18px;
+   display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+ }
+ .mp-part-pn { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--accent); }
+ .mp-part-desc { font-size: 13px; color: var(--muted); margin-top: 4px; }
+ .mp-best-deal { text-align: right; }
+ .mp-best-deal-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); }
+ .mp-best-deal-price { font-family: var(--mono); font-size: 22px; font-weight: 600; color: var(--success); margin-top: 2px; }
+ .mp-best-deal-at { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+ .mp-dist-card {
+   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+   padding: 18px 20px; margin-bottom: 12px;
+   display: grid; grid-template-columns: 160px 1fr auto; gap: 16px; align-items: center;
+ }
+ @media(max-width:680px){ .mp-dist-card { grid-template-columns: 1fr; } }
+ .mp-dist-card.best-price { border-color: var(--success-border); background: var(--success-bg); }
+ .mp-dist-name { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); }
+ .mp-dist-stock { font-size: 12px; margin-top: 4px; }
+ .mp-dist-stock.in { color: var(--success); }
+ .mp-dist-stock.out { color: var(--error); }
+ .mp-dist-stock.low { color: var(--warn); }
+ .mp-price-breaks { display: flex; gap: 8px; flex-wrap: wrap; }
+ .mp-price-break {
+   background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+   padding: 6px 12px; text-align: center; min-width: 72px;
+ }
+ .mp-price-break.cheapest { background: var(--accent-light); border-color: #c3d9ff; }
+ .mp-price-break-qty { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+ .mp-price-break-val { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--text); margin-top: 2px; }
+ .mp-price-break.cheapest .mp-price-break-val { color: var(--accent); }
+ .mp-dist-link { white-space: nowrap; }
+ .mp-best-badge {
+   display: inline-block; padding: 2px 8px; border-radius: 20px;
+   font-size: 10px; font-weight: 700; font-family: var(--mono);
+   background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border);
+   margin-left: 8px; vertical-align: middle;
+ }
+ .mp-na { color: var(--muted); font-size: 12px; font-style: italic; }
+ .mp-last-updated { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 10px; text-align: right; }
  </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -227,6 +285,7 @@
  <button class="nav-btn" onclick="showPage('bulkreceive',this)">Bulk Receive</button>
  <button class="nav-btn" onclick="showPage('inventory',this)">Inventory</button>
  <button class="nav-btn" onclick="showPage('location',this)">Location</button>
+ <button class="nav-btn" onclick="showPage('marketprice',this)">Market Price</button>
  <button class="nav-btn" onclick="showPage('scanhistory',this)">Scan History</button>
  <button class="nav-btn" onclick="showPage('settings',this)">Settings</button>
 </div>
@@ -431,6 +490,59 @@
  </div>
  </div>
 
+ <!-- ── MARKET PRICE ── -->
+ <div id="page-marketprice" class="page">
+   <div class="card">
+     <div class="card-title">Market Price &mdash; Live Distributor Comparison</div>
+
+     <!-- No API key warning -->
+     <div id="mpNoKeyWarn" class="alert alert-warn" style="display:none">
+       No Anthropic API key set. Go to <b>Settings</b> and enter your key to use Market Price.
+     </div>
+
+     <!-- Search row -->
+     <div class="mp-search-row">
+       <input type="text" id="mpSearchInput" placeholder="Enter part number e.g. GRM188R71H104KA93D, LM317T, SN74LVC1G08DCKR…"
+         onkeydown="if(event.key==='Enter') searchMarketPrice()" />
+       <button class="btn btn-primary" onclick="searchMarketPrice()" id="mpSearchBtn">Search</button>
+     </div>
+
+     <!-- Quick suggestions -->
+     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:8px">Try an example</div>
+     <div class="mp-quick-parts">
+       <span class="mp-quick-part" onclick="mpQuickSearch('GRM188R71H104KA93D')">GRM188R71H104KA93D</span>
+       <span class="mp-quick-part" onclick="mpQuickSearch('LM317T')">LM317T</span>
+       <span class="mp-quick-part" onclick="mpQuickSearch('SN74LVC1G08DCKR')">SN74LVC1G08DCKR</span>
+       <span class="mp-quick-part" onclick="mpQuickSearch('ATMEGA328P-AU')">ATMEGA328P-AU</span>
+       <span class="mp-quick-part" onclick="mpQuickSearch('IRF7404TRPBF')">IRF7404TRPBF</span>
+     </div>
+
+     <div id="mpStatus" class="status-bar" style="display:none"></div>
+   </div>
+
+   <!-- Results area -->
+   <div id="mpResults" style="display:none">
+     <!-- Part header -->
+     <div class="mp-part-header" id="mpPartHeader"></div>
+
+     <!-- Qty toggle -->
+     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+       <span style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted)">Show price at qty:</span>
+       <div style="display:flex;gap:6px;">
+         <button class="btn btn-secondary btn-sm mp-qty-btn active-qty" onclick="setMpQty(1,this)">1</button>
+         <button class="btn btn-secondary btn-sm mp-qty-btn" onclick="setMpQty(10,this)">10</button>
+         <button class="btn btn-secondary btn-sm mp-qty-btn" onclick="setMpQty(100,this)">100</button>
+         <button class="btn btn-secondary btn-sm mp-qty-btn" onclick="setMpQty(1000,this)">1000</button>
+       </div>
+     </div>
+
+     <!-- Distributor cards -->
+     <div id="mpDistCards"></div>
+
+     <div class="mp-last-updated" id="mpLastUpdated"></div>
+   </div>
+ </div>
+
  <!-- SCAN HISTORY -->
  <div id="page-scanhistory" class="page">
  <div class="card">
@@ -480,8 +592,6 @@
  <div class="inv-drawer-body">
  <div id="drawerStockPill" class="stock-pill ok">&mdash; units</div>
  <div id="drawerInfoRows" style="margin-bottom:16px"></div>
-
- <!-- Edit Location -->
  <div class="drawer-action-section" style="margin-bottom:14px">
    <div class="drawer-action-title">Nexwah PN Assignment</div>
    <div style="display:flex;gap:8px;align-items:center">
@@ -492,7 +602,6 @@
    </div>
    <div id="drawerLocationStatus" class="status-bar" style="margin-top:8px;display:none"></div>
  </div>
-
  <div class="drawer-action-section">
  <div class="drawer-action-title">Update Stock</div>
  <div class="action-toggle">
@@ -743,6 +852,276 @@ let currentScan = null;
 const SCAN_REGION = { x: 0.10, y: 0.15, w: 0.80, h: 0.70 };
 let drawerRowData = null;
 let drawerAction = "Receive";
+
+// ── MARKET PRICE ───────────────────────────────────────────
+let mpCurrentData = null;
+let mpCurrentQty = 1;
+
+function mpQuickSearch(pn) {
+  document.getElementById('mpSearchInput').value = pn;
+  searchMarketPrice();
+}
+
+function setMpQty(qty, btn) {
+  mpCurrentQty = qty;
+  document.querySelectorAll('.mp-qty-btn').forEach(b => b.classList.remove('active-qty'));
+  if (btn) btn.classList.add('active-qty');
+  if (mpCurrentData) renderMpDistCards(mpCurrentData);
+}
+
+async function searchMarketPrice() {
+  const partNumber = document.getElementById('mpSearchInput').value.trim();
+  const statusEl = document.getElementById('mpStatus');
+  const resultsEl = document.getElementById('mpResults');
+  const noKeyWarn = document.getElementById('mpNoKeyWarn');
+
+  if (!partNumber) {
+    statusEl.style.display = 'block';
+    statusEl.innerHTML = 'Enter a part number to search.';
+    statusEl.className = 'status-bar err';
+    return;
+  }
+
+  if (!cfg.anthropicKey) {
+    noKeyWarn.style.display = 'block';
+    statusEl.style.display = 'none';
+    resultsEl.style.display = 'none';
+    return;
+  }
+
+  noKeyWarn.style.display = 'none';
+  resultsEl.style.display = 'none';
+  statusEl.style.display = 'block';
+  statusEl.className = 'status-bar loading';
+  statusEl.innerHTML = '<span class="spinner"></span>Searching Mouser, DigiKey and LCSC — this may take 10–20 seconds…';
+
+  document.getElementById('mpSearchBtn').disabled = true;
+
+  try {
+    const systemPrompt = `You are an electronics component pricing assistant. The user will give you a part number. Search Mouser, DigiKey, and LCSC for current pricing and stock availability.
+
+After searching, respond with ONLY a valid JSON object — no markdown, no explanation, no extra text. Use exactly this structure:
+{
+  "part_name": "short component name e.g. 100nF MLCC 0402",
+  "part_number": "the exact MPN searched",
+  "description": "full description from datasheet or distributor",
+  "distributors": [
+    {
+      "name": "Mouser",
+      "stock": 12500,
+      "currency": "USD",
+      "price_breaks": [
+        {"qty": 1, "price": 0.12},
+        {"qty": 10, "price": 0.09},
+        {"qty": 100, "price": 0.06},
+        {"qty": 1000, "price": 0.04}
+      ],
+      "url": "https://www.mouser.com/...",
+      "in_stock": true,
+      "lead_time": null
+    },
+    {
+      "name": "DigiKey",
+      "stock": 8000,
+      "currency": "USD",
+      "price_breaks": [
+        {"qty": 1, "price": 0.13},
+        {"qty": 10, "price": 0.10},
+        {"qty": 100, "price": 0.07},
+        {"qty": 1000, "price": 0.045}
+      ],
+      "url": "https://www.digikey.com/...",
+      "in_stock": true,
+      "lead_time": null
+    },
+    {
+      "name": "LCSC",
+      "stock": 50000,
+      "currency": "USD",
+      "price_breaks": [
+        {"qty": 1, "price": 0.05},
+        {"qty": 10, "price": 0.04},
+        {"qty": 100, "price": 0.03},
+        {"qty": 1000, "price": 0.02}
+      ],
+      "url": "https://www.lcsc.com/...",
+      "in_stock": true,
+      "lead_time": null
+    }
+  ]
+}
+
+If a distributor does not carry the part or you cannot find pricing, still include that distributor with stock: 0, in_stock: false, and empty price_breaks: [].
+If prices are in a different currency on a site (e.g. CNY on LCSC), convert to USD and set currency: "USD".
+Return ONLY the JSON. No markdown fences. No extra words.`;
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': cfg.anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Find current pricing and stock for part number: ${partNumber}` }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err?.error?.message || 'API error ' + response.status);
+    }
+
+    const data = await response.json();
+
+    // Extract the final text block (Claude's answer after searching)
+    const textBlocks = (data.content || []).filter(b => b.type === 'text').map(b => b.text);
+    const rawText = textBlocks.join('').trim();
+
+    // Strip any accidental markdown fences
+    const cleaned = rawText.replace(/```json|```/g, '').trim();
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch (e) {
+      // Try to find JSON object within the text
+      const match = cleaned.match(/\{[\s\S]*\}/);
+      if (match) {
+        parsed = JSON.parse(match[0]);
+      } else {
+        throw new Error('Could not parse pricing data. Try again.');
+      }
+    }
+
+    mpCurrentData = parsed;
+    mpCurrentQty = 1;
+    document.querySelectorAll('.mp-qty-btn').forEach((b,i) => b.classList.toggle('active-qty', i===0));
+
+    renderMpResults(parsed);
+    statusEl.style.display = 'none';
+    resultsEl.style.display = 'block';
+
+  } catch (e) {
+    statusEl.innerHTML = '⚠ ' + (e.message || 'Search failed. Check your API key and try again.');
+    statusEl.className = 'status-bar err';
+  } finally {
+    document.getElementById('mpSearchBtn').disabled = false;
+  }
+}
+
+function getPriceAtQty(priceBreaks, qty) {
+  if (!priceBreaks || !priceBreaks.length) return null;
+  // Find the highest break that is <= qty
+  const sorted = [...priceBreaks].sort((a, b) => b.qty - a.qty);
+  for (const pb of sorted) {
+    if (qty >= pb.qty) return pb.price;
+  }
+  return priceBreaks[0].price; // fallback to lowest break
+}
+
+function renderMpResults(data) {
+  // Part header
+  const distributors = data.distributors || [];
+  const allPricesAt1 = distributors
+    .map(d => getPriceAtQty(d.price_breaks, 1))
+    .filter(p => p !== null && p > 0);
+  const bestPrice = allPricesAt1.length ? Math.min(...allPricesAt1) : null;
+  const bestDist = bestPrice !== null
+    ? distributors.find(d => getPriceAtQty(d.price_breaks, 1) === bestPrice)
+    : null;
+
+  document.getElementById('mpPartHeader').innerHTML = `
+    <div>
+      <div class="mp-part-pn">${escHtml(data.part_number || '')}</div>
+      <div class="mp-part-desc">${escHtml(data.part_name || '')}${data.description ? ' &mdash; ' + escHtml(data.description) : ''}</div>
+    </div>
+    ${bestPrice !== null ? `
+    <div class="mp-best-deal">
+      <div class="mp-best-deal-label">Best Price (qty 1)</div>
+      <div class="mp-best-deal-price">$${bestPrice.toFixed(4)}</div>
+      <div class="mp-best-deal-at">${bestDist ? 'at ' + escHtml(bestDist.name) : ''}</div>
+    </div>` : ''}
+  `;
+
+  document.getElementById('mpLastUpdated').textContent = 'Prices fetched: ' + new Date().toLocaleString();
+  renderMpDistCards(data);
+}
+
+function renderMpDistCards(data) {
+  const distributors = data.distributors || [];
+  const qty = mpCurrentQty;
+
+  // Find the best price at this qty among in-stock distributors
+  const pricesAtQty = distributors
+    .filter(d => d.in_stock)
+    .map(d => getPriceAtQty(d.price_breaks, qty))
+    .filter(p => p !== null && p > 0);
+  const bestPriceAtQty = pricesAtQty.length ? Math.min(...pricesAtQty) : null;
+
+  const distColors = { Mouser: '#15803d', DigiKey: '#1d4ed8', LCSC: '#c2410c' };
+  const distOrder = ['Mouser', 'DigiKey', 'LCSC'];
+
+  // Sort by known order, unknowns at end
+  const sorted = [...distributors].sort((a, b) => {
+    const ai = distOrder.indexOf(a.name), bi = distOrder.indexOf(b.name);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  const html = sorted.map(dist => {
+    const priceHere = getPriceAtQty(dist.price_breaks, qty);
+    const isBest = priceHere !== null && bestPriceAtQty !== null && priceHere === bestPriceAtQty && dist.in_stock;
+    const color = distColors[dist.name] || 'var(--accent)';
+
+    const stockStr = dist.stock === null || dist.stock === undefined
+      ? 'Stock unknown'
+      : dist.stock === 0
+        ? 'Out of stock'
+        : dist.stock.toLocaleString() + ' in stock';
+    const stockClass = !dist.in_stock ? 'out' : dist.stock > 500 ? 'in' : 'low';
+
+    const priceBreaksHtml = (dist.price_breaks || []).length === 0
+      ? '<span class="mp-na">No pricing available</span>'
+      : (dist.price_breaks || []).map(pb => {
+          const isActive = pb.qty <= qty && (dist.price_breaks.filter(x => x.qty <= qty).length
+            ? Math.max(...dist.price_breaks.filter(x => x.qty <= qty).map(x => x.qty)) === pb.qty
+            : pb.qty === dist.price_breaks[0].qty);
+          return `<div class="mp-price-break ${isActive ? 'cheapest' : ''}">
+            <div class="mp-price-break-qty">Qty ${pb.qty >= 1000 ? (pb.qty/1000)+'K' : pb.qty}</div>
+            <div class="mp-price-break-val">$${Number(pb.price).toFixed(4)}</div>
+          </div>`;
+        }).join('');
+
+    const linkHtml = dist.url
+      ? `<a href="${escHtml(dist.url)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm mp-dist-link">View ↗</a>`
+      : '<span class="mp-na">No link</span>';
+
+    return `
+      <div class="mp-dist-card ${isBest ? 'best-price' : ''}">
+        <div>
+          <div class="mp-dist-name" style="color:${color}">
+            ${escHtml(dist.name)}
+            ${isBest ? '<span class="mp-best-badge">Best Price</span>' : ''}
+          </div>
+          <div class="mp-dist-stock ${stockClass}">${stockStr}</div>
+          ${dist.lead_time ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;font-family:var(--mono)">Lead time: ${escHtml(dist.lead_time)}</div>` : ''}
+        </div>
+        <div class="mp-price-breaks">${priceBreaksHtml}</div>
+        <div>${linkHtml}</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('mpDistCards').innerHTML = html;
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // ── LOCATION DATA ─────────────────────────────────────────
 function makeLoc(id, name = '', type = '') {
@@ -1267,6 +1646,11 @@ function showPage(name, btn) {
  if (name==="inventory") { if (_invCache) _renderInvRows(document.getElementById("invTableBody")); else renderInventory(); }
  if (name==="scanhistory") renderScanHistory();
  if (name==="settings") loadSettingsPage();
+ if (name==="marketprice") {
+   const noKeyWarn = document.getElementById('mpNoKeyWarn');
+   if (noKeyWarn) noKeyWarn.style.display = cfg.anthropicKey ? 'none' : 'block';
+   setTimeout(() => document.getElementById('mpSearchInput')?.focus(), 100);
+ }
  if (name==="location") {
     populateAllLocationDropdowns();
     renderLocations();
@@ -1309,7 +1693,6 @@ async function sheetUpdateLocation(rowIndex, location) {
   const url=`${APPS_SCRIPT_URL}?action=updateLocation&sheet=${encodeURIComponent(cfg.sheetName||"Sheet1")}&rowIndex=${rowIndex}&location=${encodeURIComponent(location)}`;
   const resp=await fetch(url); return await resp.text();
 }
-// ── FIX: updateRowSerial now has a working backend handler ─
 async function sheetUpdateRowSerial(rowIndex, rowSerial) {
   const url=`${APPS_SCRIPT_URL}?action=updateRowSerial&sheet=${encodeURIComponent(cfg.sheetName||"Sheet1")}&rowIndex=${rowIndex}&rowSerial=${encodeURIComponent(rowSerial)}`;
   const resp=await fetch(url); return await resp.text();
@@ -1387,10 +1770,18 @@ function _renderInvRows(tbody) {
         <button class="btn btn-success btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${source}',${qty},'Receive')">+</button>
         <button class="btn btn-danger btn-sm" onclick="quickUpdate(${origIdx},'${mfrPn}','${source}',${qty},'Use')">−</button>
         <button class="btn btn-secondary btn-sm" onclick="printLabel('${mfrPn}','','${desc}','${rowVal}',${qty})">Print</button>
+        <button class="btn btn-secondary btn-sm" onclick="mpFromInventory('${mfrPn}')">💹 Price</button>
         <button class="btn btn-danger btn-sm" onclick="deleteInventoryRow(${origIdx},'${mfrPn}')">Remove</button>
       </div></td>
     </tr>`;
   }).join("");
+}
+
+// Launch Market Price from Inventory tab
+function mpFromInventory(mfrPn) {
+  document.getElementById('mpSearchInput').value = mfrPn;
+  showPage('marketprice', document.querySelector('.nav-btn[onclick*="marketprice"]'));
+  searchMarketPrice();
 }
 
 async function quickUpdate(rowIdx,mfrPn,supplier,currentQty,action) {
@@ -1667,7 +2058,7 @@ const GOOGLE_VISION_API_KEY="AIzaSyBjzZf1DVzZFuaf9tC5SW8x9bjqp1t7HQQ";
 const MPN_LABEL_REGEX=/^(MANUFACTURER\s*PART\s*(NO?\.?|NUMBER)?|MFR\s*(PN|P\/N|NO?\.?)?|MFG\s*(PN|P\/N|NO?\.?)?|MPN|MNF\s*(PN|P\/N)?|MAN\s*(PN|P\/N)?|PART\s*(NO?\.?|NUMBER|#)?|P\s*\/?\s*N|CAT\s*(NO?\.?|#)?|ITEM\s*(NO?\.?|#)?|MODEL\s*(NO?\.?)?|REF\s*(NO?\.?|#)?|\u578b\u53f7|\u6599\u53f7|\u7269\u6599\u7f16\u53f7|\u89c4\u683c\u578b\u53f7)\s*[:#\-\.\s]?\s*/i;
 const DESCRIPTION_WORDS=new Set(["CAPACITOR","CAP","RESISTOR","RES","INDUCTOR","IND","TRANSISTOR","DIODE","RELAY","CONNECTOR","CONN","MODULE","SENSOR","SWITCH","VOLTAGE","REGULATOR","REG","AMPLIFIER","AMP","OSCILLATOR","CRYSTAL","XTAL","FILTER","FUSE","DISPLAY","CONTROLLER","CTRL","DRIVER","DRV","INTERFACE","ELECTROLYTIC","ELEC","CERAMIC","FILM","TANTALUM","TANT","SMD","SMT","WATT","VOLT","OHM","FARAD","HENRY","HERTZ","WITH","FOR","AND","THE","FROM","TYPE","PACK","REEL","TAPE","TRAY","BLACK","WHITE","RED","BLUE","GREEN","YELLOW","SILVER","GOLD","LEADED","LEADFREE","ROHS","COMPLIANT","GENUINE","ORIGINAL","THROUGH","HOLE"]);
 const NOISE_STARTS=new Set(["INV","S/O","DATE","LOT#","LOT ","QTY","SHIP","CUST","ORDER","PACK","PO#","REV ","SER ","SERIAL","LEAD","INVOICE","PACKING","DELIVERY","PURCHASE","RECEIPT","BATCH","TOTAL","PRICE","UNIT","USD","SGD","CNY","EUR","GBP","MYR"]);
-const MFR_PREFIXES=new Set(["STM","STM32","STM8","TI","LM","TL","SN","OPA","INA","REF","TPS","LMR","LMK","NXP","LPC","MKE","MK","FXOS","FXLS","MCR","MCP","PIC","ATTINY","ATMEGA","AT","ESP","ESP32","ESP8266","GRM","LQH","BLM","NFM","GCM","CGA","GJM","CRCW","RCWP","ERJ","RK73","RC","RN","IRF","IRFZ","IRLZ","IPP","IPS","BSS","BSR","BC","BD","BT","BUK","LT","LTC","LTM","LTZ","MAX","ICM","ICL","ISL","EL","HIN","ADM","AD","ADA","ADP","ADR","ADXL","BAT","BAS","BZX","BZT","MM","MBR","MB","ULN","UDN","L29","L6","STP","STF","C2012","C1608","C0402","C0603","C0805","C1206","RC0402","RC0603","RC0805","RC1206","GRM21","GRM18","GRM15","STN","TVS","HDS","MB1"]);
+const MFR_PREFIXES=new Set(["STM","STM32","STM8","TI","LM","TL","SN","OPA","INA","REF","TPS","LMR","LMK","NXP","LPC","MKE","MK","FXOS","FXLS","MCR","MCP","PIC","ATTINY","ATMEGA","AT","ESP","ESP32","ESP8266","GRM","LQH","BLM","NFM","GCM","CGA","GJM","CRCW","RCWP","ERJ","RK73","RC","RN","IRF","IRFZ","IRLZ","IPP","IPS","BSS","BSR","BC","BD","BT","BUK","LT","LTC","LTM","LTZ","MAX","ICM","ICL","ISL","EL","HIN","ADM","AD","ADA","ADP","ADR","ADXL","BAT","BAS","BZX","BZT","MM","MBR","MB","ULN","UDN","L29","L6","STP","STF","C2012","C1608","C0402","C0603","C0805","C1206","GRM21","GRM18","GRM15","STN","TVS","HDS","MB1"]);
 
 function scoreMPN(raw){const pn=raw.replace(/[^A-Z0-9\-\.\/]/g,"").toUpperCase();if(pn.length<4||pn.length>32)return null;if(!/[A-Z]/.test(pn))return null;if(!/[0-9]/.test(pn))return null;if(/^\d{2,4}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(pn))return null;if(/^\d{1,2}-[A-Z]{3}-\d{2,4}$/.test(pn))return null;if(/^\d+$/.test(pn))return null;if(/^[A-Z]{1,3}\d{1,2}$/.test(pn))return null;if(DESCRIPTION_WORDS.has(pn))return null;let score=0;const len=pn.length,letters=(pn.match(/[A-Z]/g)||[]).length,digits=(pn.match(/[0-9]/g)||[]).length,lr=letters/len,dr=digits/len;if(len>=4&&len<=6)score+=20;if(len>=7&&len<=14)score+=35;if(len>=15&&len<=20)score+=20;if(len>20)score-=10;if(lr>0.15&&lr<0.90)score+=20;if(dr>0.10&&dr<0.80)score+=20;if(/^[A-Z]{2,6}\d/.test(pn))score+=20;if(/[A-Z]\d+[A-Z]/.test(pn))score+=18;if(/\d{2,}[A-Z]{1,4}$/.test(pn))score+=12;if(/^[A-Z]+$/.test(pn))score-=30;for(const prefix of MFR_PREFIXES){if(pn.startsWith(prefix)){score+=40;break;}}if(/^(MFR|MFG|MNF|MPN|MAN|PN|REV|SER|LOT|INV|PO)/.test(pn))score-=50;if(pn.split('-').length>4)score-=10;return{pn,score,tier:score>=70?"HIGH":score>=40?"MED":"LOW"};}
 
@@ -1802,50 +2193,28 @@ async function confirmScanDispatch(rowIdx,currentQty){const qty=parseInt(documen
 async function confirmScanReceiveExisting(rowIdx,currentQty,boxId,existingLoc){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");if(qty<=0){statusEl.style.display="block";statusEl.innerHTML="Enter qty ≥ 1";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing…';statusEl.className="status-bar loading";const newQty=currentQty+qty,today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);if(!existingLoc&&boxId&&LOCATIONS.find(l=>l.id===boxId)){const slot=claimNextSlot(boxId);await sheetUpdateLocation(rowIdx,getBaseLocationId(slot));try{await sheetUpdateRowSerial(rowIdx,slot);}catch(e){console.warn("Nexwah PN update failed:",e);}}const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,currentQty,newQty,notes||"Scan receive"]);statusEl.innerHTML=`✓ Received ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Received ${qty} × ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 async function confirmScanReceiveNew(){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");const mfrPn=document.getElementById("scanMfrPn").value.trim();const desc=document.getElementById("scanDesc").value.trim();const locationSel=document.getElementById("scanLocation");const locId=locationSel?locationSel.value.trim():"";const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";if(!mfrPn||qty<=0){statusEl.style.display="block";statusEl.innerHTML="Part number and qty required";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Adding…';statusEl.className="status-bar loading";const today=todayStr();try{const rows=await sheetRead();let existingIdx=-1,existingQty=0;for(let i=1;i<rows.length;i++){if(String(rows[i][2]||"").trim().toUpperCase()===mfrPn.toUpperCase()){existingIdx=i+1;existingQty=parseInt(rows[i][4])||0;break;}}if(existingIdx>0){const newQty=existingQty+qty;await sheetUpdate(existingIdx,newQty,today);await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,existingQty,newQty,notes||"Scan receive"]);_invCache=null;statusEl.innerHTML=`✓ Updated existing: ${mfrPn} × ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Stock updated: ${mfrPn} → ${newQty}`);}else{const finalLocation=locId?claimNextSlot(locId):(await autoAssignLocation())||"";const row=makeInventoryRow({mfrPn,desc,qty,box:getBaseLocationId(finalLocation),rowSerial:finalLocation,source:supplier,memo:notes||"Scan receive new"});const res=await sheetAppend(row);if(res.trim()!=="ok")throw new Error(res);await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,0,qty,notes||"Scan receive new"]);_invCache=null;statusEl.innerHTML=`✓ Added ${mfrPn} × ${qty} at ${finalLocation}`;statusEl.className="status-bar ok";toast(`Added: ${mfrPn} → ${finalLocation}`);populateAllLocationDropdowns();}}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 
-// ── SCAN HISTORY — Google Drive ─────────────────────────────
+// ── SCAN HISTORY ───────────────────────────────────────────
 const SCAN_HISTORY_DRIVE_FOLDER = "NEXWAH Scan History";
 
-// Single POST: upload image to Drive AND append ScanHistory row — atomically in Apps Script.
-// Avoids the two-step (POST upload → GET append URL) race where URL could be lost.
 async function saveScanToHistory(scan) {
   try {
     const payload = {
-      action:     "saveScanHistory",
-      date:       scan.date       || todayStr(),
-      mfrPn:      scan.mfrPn      || "",
-      supplierPn: scan.supplierPn || "",
-      supplier:   scan.supplier   || "Unknown",
-      desc:       scan.desc       || "",
-      image:      scan.image      || "",
-      fileName:   makeScanImageFileName(scan)
+      action:"saveScanHistory", date:scan.date||todayStr(), mfrPn:scan.mfrPn||"",
+      supplierPn:scan.supplierPn||"", supplier:scan.supplier||"Unknown",
+      desc:scan.desc||"", image:scan.image||"", fileName:makeScanImageFileName(scan)
     };
-
-    const resp = await fetch(APPS_SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
-
+    const resp = await fetch(APPS_SCRIPT_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(payload) });
     const text = await resp.text();
-    let data;
-    try { data = JSON.parse(text); } catch(e) { throw new Error("Bad response: " + text.slice(0, 120)); }
+    let data; try { data = JSON.parse(text); } catch(e) { throw new Error("Bad response: " + text.slice(0,120)); }
     if (!data.ok) throw new Error(data.error || "Save failed.");
-
     toast(data.hasImage ? "Scan saved ✓ (image in Google Drive)" : "Scan saved (no image captured).");
-  } catch(e) {
-    console.error("saveScanToHistory failed:", e);
-    toast("Scan history save failed: " + String(e.message || e));
-  }
+  } catch(e) { console.error("saveScanToHistory failed:", e); toast("Scan history save failed: " + String(e.message || e)); }
 }
-
 function makeScanImageFileName(scan) {
-  const pn = String(scan.mfrPn || "unknown").replace(/[\\/:*?"<>|#%{}[\]^~`]+/g, "_").replace(/\s+/g, "_").trim().slice(0, 70) || "unknown";
+  const pn = String(scan.mfrPn || "unknown").replace(/[\\/:*?"<>|#%{}[\]^~`]+/g, "_").replace(/\s+/g, "_").trim().slice(0,70) || "unknown";
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   return "scan_" + pn + "_" + stamp + ".jpg";
 }
-
-
-
 async function loadAllScans() {
   const url = APPS_SCRIPT_URL + "?action=read&sheet=" + encodeURIComponent(SCAN_HISTORY_SHEET);
   const resp = await fetch(url);
@@ -1854,26 +2223,20 @@ async function loadAllScans() {
   if (!Array.isArray(rows)) throw new Error("Invalid ScanHistory response.");
   return rows.slice(1).filter(r => r && r[1]).reverse();
 }
-
 function extractDriveFileId(url) {
   const s = String(url || "");
-  // thumbnail?id=FILE_ID or uc?export=view&id=FILE_ID
   let m = s.match(/[?&]id=([^&]+)/); if (m) return decodeURIComponent(m[1]);
-  // /file/d/FILE_ID or /d/FILE_ID
   m = s.match(/\/file\/d\/([^/?]+)/); if (m) return decodeURIComponent(m[1]);
   m = s.match(/\/d\/([^/?]+)/); if (m) return decodeURIComponent(m[1]);
   return "";
 }
-// Primary display: thumbnail (works for logged-in Google users, no CORS issue for <img>)
-// If already a thumbnail URL, use directly. Otherwise convert.
 function scanImageDisplayUrl(url) {
   const s = String(url || "").trim(); if (!s) return "";
-  if (s.includes("drive.google.com/thumbnail")) return s; // already correct format
+  if (s.includes("drive.google.com/thumbnail")) return s;
   const driveId = extractDriveFileId(s);
   if (driveId) return "https://drive.google.com/thumbnail?id=" + driveId + "&sz=w800";
   return s;
 }
-// Fallback URL tried in onerror
 function scanImageFallbackUrl(url) {
   const driveId = extractDriveFileId(String(url || "").trim());
   if (driveId) return "https://drive.google.com/uc?export=view&id=" + driveId;
@@ -1885,29 +2248,11 @@ function scanImageOpenUrl(url) {
   if (driveId) return "https://drive.google.com/file/d/" + driveId + "/view";
   return s;
 }
-
 async function clearScanHistory() {
   if (!confirm("Delete all scan history? This cannot be undone.")) return;
-  try {
-    const url = APPS_SCRIPT_URL + "?action=clearSheet&sheet=" + encodeURIComponent(SCAN_HISTORY_SHEET);
-    await fetch(url); toast("Scan history cleared.");
-  } catch (e) { toast("Clear failed: " + e.message); }
+  try { const url = APPS_SCRIPT_URL + "?action=clearSheet&sheet=" + encodeURIComponent(SCAN_HISTORY_SHEET); await fetch(url); toast("Scan history cleared."); } catch (e) { toast("Clear failed: " + e.message); }
   renderScanHistory();
 }
-
-async function migrateScanHistoryImagesToDrive() {
-  if (!confirm("Move existing Imgur scan-history images to Google Drive? This updates the ScanHistory sheet image links.")) return;
-  toast("Moving scan images to Google Drive...");
-  try {
-    const resp = await fetch(APPS_SCRIPT_URL, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ action: "migrateScanHistoryImages", sheet: SCAN_HISTORY_SHEET, folderName: SCAN_HISTORY_DRIVE_FOLDER }) });
-    const text = await resp.text();
-    let data; try { data = JSON.parse(text); } catch (e) { throw new Error(text.slice(0, 180)); }
-    if (!data.ok) throw new Error(data.error || "Migration failed.");
-    toast("Moved " + (data.migrated || 0) + " image(s) to Google Drive. Skipped " + (data.skipped || 0) + ".");
-    renderScanHistory();
-  } catch (e) { toast("Migration failed: " + e.message); }
-}
-
 async function renderScanHistory() {
   const searchEl = document.getElementById("scanHistorySearch");
   const grid = document.getElementById("scanHistoryGrid");
@@ -1915,24 +2260,16 @@ async function renderScanHistory() {
   const loading = document.getElementById("scanHistoryLoading");
   if (!grid) return;
   const search = (searchEl?.value || "").trim().toUpperCase();
-  grid.innerHTML = "";
-  if (empty) empty.style.display = "none";
-  if (loading) loading.style.display = "block";
+  grid.innerHTML = ""; if (empty) empty.style.display = "none"; if (loading) loading.style.display = "block";
   let scans = [];
   try { scans = await loadAllScans(); } catch (e) {
     if (loading) loading.style.display = "none";
-    grid.innerHTML = '<div class="card" style="grid-column:1/-1"><div class="empty-state" style="color:var(--error)">Could not load scan history from Google Sheets.<br>' + String(e.message || e) + '</div></div>';
+    grid.innerHTML = '<div class="card" style="grid-column:1/-1"><div class="empty-state" style="color:var(--error)">Could not load scan history.<br>' + String(e.message || e) + '</div></div>';
     return;
   }
   if (loading) loading.style.display = "none";
-  const filtered = scans.filter(r => {
-    if (!search) return true;
-    return [r[1],r[2],r[3],r[4]].some(v => String(v||"").toUpperCase().includes(search));
-  });
-  if (!filtered.length) {
-    if (empty) { empty.style.display = "block"; empty.innerHTML = '<div class="empty-state">No scans saved yet. Start scanning labels to build your history.</div>'; }
-    return;
-  }
+  const filtered = scans.filter(r => { if (!search) return true; return [r[1],r[2],r[3],r[4]].some(v => String(v||"").toUpperCase().includes(search)); });
+  if (!filtered.length) { if (empty) { empty.style.display = "block"; empty.innerHTML = '<div class="empty-state">No scans saved yet.</div>'; } return; }
   filtered.forEach(row => {
     const date=row[0]||"", mfrPn=row[1]||"", supplierPn=row[2]||"", supplier=row[3]||"Unknown", desc=row[4]||"No description", imageRaw=row[5]||"";
     const displayUrl=scanImageDisplayUrl(imageRaw), openUrl=scanImageOpenUrl(imageRaw);
@@ -1943,38 +2280,11 @@ async function renderScanHistory() {
       imgWrap.style.cursor="zoom-in"; imgWrap.onclick=()=>openImgModalDirect(openUrl||displayUrl);
       const img=document.createElement("img"); img.src=displayUrl; img.alt="Scan image"; img.loading="lazy";
       img.style.cssText="cursor:zoom-in;width:100%;height:100%;object-fit:cover;display:block";
-      img.onerror=()=>{
-        // Stage 1: try uc?export=view fallback
-        const fallback = scanImageFallbackUrl(imageRaw);
-        if (fallback && img.src !== fallback) {
-          img.onerror = () => {
-            // Stage 2: show placeholder with Drive link
-            const openLink = openUrl || displayUrl;
-            imgWrap.innerHTML = `<div class="scan-hist-img-placeholder" style="gap:6px">
-              <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/></svg>
-              <div style="color:#888;font-size:11px">Image not loading</div>
-              ${openLink ? `<a href="${openLink}" target="_blank" style="color:#5b9bd5;font-size:11px;font-family:var(--mono)">View in Drive ↗</a>` : ''}
-            </div>`;
-          };
-          img.src = fallback;
-        } else {
-          const openLink = openUrl || displayUrl;
-          imgWrap.innerHTML = `<div class="scan-hist-img-placeholder" style="gap:6px">
-            <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/></svg>
-            <div style="color:#888;font-size:11px">Image not loading</div>
-            ${openLink ? `<a href="${openLink}" target="_blank" style="color:#5b9bd5;font-size:11px;font-family:var(--mono)">View in Drive ↗</a>` : ''}
-          </div>`;
-        }
-      };
+      img.onerror=()=>{ const fallback=scanImageFallbackUrl(imageRaw); if(fallback&&img.src!==fallback){img.onerror=()=>{const openLink=openUrl||displayUrl;imgWrap.innerHTML=`<div class="scan-hist-img-placeholder" style="gap:6px"><svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/></svg><div style="color:#888;font-size:11px">Image not loading</div>${openLink?`<a href="${openLink}" target="_blank" style="color:#5b9bd5;font-size:11px;font-family:var(--mono)">View in Drive ↗</a>`:''}</div>`;};img.src=fallback;}else{const openLink=openUrl||displayUrl;imgWrap.innerHTML=`<div class="scan-hist-img-placeholder" style="gap:6px"><svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/></svg><div style="color:#888;font-size:11px">Image not loading</div>${openLink?`<a href="${openLink}" target="_blank" style="color:#5b9bd5;font-size:11px;font-family:var(--mono)">View in Drive ↗</a>`:''}</div>`;}};
       imgWrap.appendChild(img);
-    } else {
-      imgWrap.innerHTML='<div class="scan-hist-img-placeholder"><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/><circle cx="36" cy="16" r="2" fill="#666"/></svg><div style="color:#666;font-size:11px;margin-top:8px">No image</div></div>';
-    }
+    } else { imgWrap.innerHTML='<div class="scan-hist-img-placeholder"><svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="8" y="12" width="32" height="24" rx="3" stroke="#555" stroke-width="2" fill="none"/><circle cx="24" cy="24" r="6" stroke="#555" stroke-width="2" fill="none"/><circle cx="36" cy="16" r="2" fill="#666"/></svg><div style="color:#666;font-size:11px;margin-top:8px">No image</div></div>'; }
     const body=document.createElement("div"); body.className="scan-hist-body";
-    body.innerHTML='<div class="scan-hist-pn">'+escapeHtmlScan(mfrPn||"—")+'</div>'+
-      '<div class="scan-hist-desc">'+escapeHtmlScan(desc||"No description")+'</div>'+
-      '<div class="scan-hist-meta"><span class="badge '+supplierClass+'">'+escapeHtmlScan(supplier||"Unknown")+'</span><span class="scan-hist-date">'+escapeHtmlScan(formatDate(date))+'</span></div>'+
-      (supplierPn?'<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:4px;word-break:break-all">'+escapeHtmlScan(supplierPn)+'</div>':'');
+    body.innerHTML='<div class="scan-hist-pn">'+escapeHtmlScan(mfrPn||"—")+'</div>'+'<div class="scan-hist-desc">'+escapeHtmlScan(desc||"No description")+'</div>'+'<div class="scan-hist-meta"><span class="badge '+supplierClass+'">'+escapeHtmlScan(supplier||"Unknown")+'</span><span class="scan-hist-date">'+escapeHtmlScan(formatDate(date))+'</span></div>'+(supplierPn?'<div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:4px;word-break:break-all">'+escapeHtmlScan(supplierPn)+'</div>':'');
     card.appendChild(imgWrap); card.appendChild(body); grid.appendChild(card);
   });
 }
@@ -1987,8 +2297,8 @@ function loadSettingsPage() {
   const hasKey=!!cfg.anthropicKey;
   const keyInput=document.getElementById("settingsApiKey"), keyStatusEl=document.getElementById("apiKeyStatus"), statusEl=document.getElementById("settingsStatus");
   if (keyInput) keyInput.value=hasKey?cfg.anthropicKey:"";
-  if (keyStatusEl) keyStatusEl.innerHTML=hasKey?`<div class="alert alert-success">✓ API key saved. Claude Vision scanning enabled.</div>`:`<div class="alert alert-warn">No API key set. Using free OCR (Google Vision → Tesseract fallback).</div>`;
-  if (statusEl) statusEl.innerHTML=`API Key: <b>${hasKey?"Set ✓":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b><br>Scan History: <b>Google Sheets (ScanHistory tab) — cross-device</b>`;
+  if (keyStatusEl) keyStatusEl.innerHTML=hasKey?`<div class="alert alert-success">✓ API key saved. Claude Vision scanning &amp; Market Price enabled.</div>`:`<div class="alert alert-warn">No API key set. Using free OCR (Google Vision → Tesseract fallback). Market Price requires a key.</div>`;
+  if (statusEl) statusEl.innerHTML=`API Key: <b>${hasKey?"Set ✓":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b><br>Scan History: <b>Google Sheets (ScanHistory tab)</b><br>Market Price: <b>${hasKey?"Enabled (Mouser · DigiKey · LCSC)":"Requires API key"}</b>`;
 }
 function saveSettingsKey(){const val=document.getElementById("settingsApiKey").value.trim();const msgEl=document.getElementById("settingsKeyMsg");if(!val.startsWith("sk-ant-")){msgEl.style.display="block";msgEl.innerHTML="Key must start with sk-ant-";msgEl.className="status-bar err";return;}cfg.anthropicKey=val;localStorage.setItem("nexwah_anthropic_key",val);msgEl.style.display="block";msgEl.innerHTML="✓ Key saved.";msgEl.className="status-bar ok";toast("API key saved.");loadSettingsPage();}
 function removeSettingsKey(){cfg.anthropicKey="";localStorage.removeItem("nexwah_anthropic_key");document.getElementById("settingsApiKey").value="";const msgEl=document.getElementById("settingsKeyMsg");msgEl.style.display="block";msgEl.innerHTML="Key removed.";msgEl.className="status-bar warn";toast("API key removed.");loadSettingsPage();}
@@ -2096,28 +2406,16 @@ function downloadBulkSampleCSV(){downloadFile("sample_bulk_receive.csv","text/cs
 // ── MISC ───────────────────────────────────────────────────
 async function confirmClear(){if(!confirm("This will delete ALL inventory and transaction data from Google Sheets. Are you sure?"))return;if(!confirm("SECOND CONFIRMATION: This cannot be undone. Proceed?"))return;toast("Clear not implemented — manage data in Google Sheets directly for safety.");}
 
-async function fixMissingRowSerials(){
-  if(!confirm("This will fill missing Nexwah PNs and write them to the Row column. Continue?"))return;
-  try{
-    toast("Fixing missing Nexwah PNs…");
-    const rows=await sheetRead(),effectiveMap=buildEffectiveLocationMap(rows);let count=0;
-    for(let i=1;i<rows.length;i++){
-      const rowIndex=i+1,currentRow=getSheetRowSerial(rows[i]),box=getSheetLocation(rows[i]),fixedRow=effectiveMap[rowIndex]||currentRow;
-      if(!box||!fixedRow||currentRow===fixedRow)continue;
-      if(!isKnownLocationBox(box)||!isFullSlotLabel(fixedRow))continue;
-      try{await sheetUpdateRowSerial(rowIndex,fixedRow);}catch(e){console.warn("Could not write Nexwah PN",rowIndex,e);}
-      rows[i][6]=fixedRow;count++;
-    }
-    _invCache=null;toast(`Fixed ${count} missing Nexwah PN(s).`);
-    await renderInventory();populateAllLocationDropdowns();renderLocations();
-  }catch(e){toast("Fix failed: "+e.message);}
-}
-
 function todayStr(){return new Date().toISOString().split("T")[0];}
 function formatDate(d){if(!d)return"";try{const dt=new Date(d);if(isNaN(dt))return d;return dt.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"});}catch(e){return d;}}
 function setCamStatus(msg,type){const el=document.getElementById("camStatus");el.innerHTML=msg;el.className="status-bar"+(type?" "+type:"");}
 let toastTimer;
 function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove("show"),3000);}
+
+/* qty toggle style */
+const mpQtyStyle = document.createElement('style');
+mpQtyStyle.textContent = '.mp-qty-btn.active-qty { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }';
+document.head.appendChild(mpQtyStyle);
 </script>
 </body>
 </html>
