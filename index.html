@@ -1002,7 +1002,7 @@ async function searchMarketPrice() {
           const mStock = parseInt((mPart.Availability || '').replace(/[^0-9]/g,'') || '0');
           results.distributors.push({
             name: 'Mouser', stock: mStock, currency: 'USD', price_breaks: mBreaks,
-            url: mPart.ProductDetailUrl ? 'https://www.mouser.com' + mPart.ProductDetailUrl : distUrls.Mouser,
+            url: mPart.ProductDetailUrl ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.com' + mPart.ProductDetailUrl) : distUrls.Mouser,
             in_stock: mStock > 0
           });
         } else {
