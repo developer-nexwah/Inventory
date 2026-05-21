@@ -577,20 +577,14 @@
 
  <!-- Distributor API Keys -->
  <div style="border-top:1px solid var(--border);padding-top:18px;margin-bottom:22px">
- <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Market Price — Distributor API Keys</div>
- <div style="font-size:12px;color:var(--muted);margin-bottom:16px;line-height:1.6">
-   Get keys free at:
-   <a href="https://www.mouser.com/api-hub/" target="_blank" style="color:var(--accent)">Mouser API Hub</a> &nbsp;&middot;&nbsp;
-   <a href="https://developer.digikey.com/" target="_blank" style="color:var(--accent)">DigiKey Developer Portal</a> &nbsp;&middot;&nbsp;
-   LCSC API requires application approval at lcsc.com
- </div>
+ <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:16px">Market Price — Distributor API Keys</div>
 
  <div style="display:flex;flex-direction:column;gap:14px;max-width:540px">
    <!-- Mouser -->
    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-       <div style="font-size:13px;font-weight:700;color:#15803d">Mouser</div>
-       <div id="mouserKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
+       <div style="font-size:13px;font-weight:600;color:var(--text)">Mouser</div>
+       <div id="mouserKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
      </div>
      <div class="field"><label>API Key</label><input type="password" id="settingsMouserKey" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="font-family:var(--mono);font-size:12px" /></div>
      <div class="btn-row" style="margin-top:10px">
@@ -602,8 +596,8 @@
    <!-- DigiKey -->
    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-       <div style="font-size:13px;font-weight:700;color:#1d4ed8">DigiKey</div>
-       <div id="digikeyKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
+       <div style="font-size:13px;font-weight:600;color:var(--text)">DigiKey</div>
+       <div id="digikeyKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
      </div>
      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
        <div class="field"><label>Client ID</label><input type="password" id="settingsDkClientId" placeholder="Client ID" style="font-family:var(--mono);font-size:12px" /></div>
@@ -618,11 +612,8 @@
    <!-- LCSC -->
    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-       <div style="font-size:13px;font-weight:700;color:#c2410c">LCSC</div>
-       <div id="lcscKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
-     </div>
-     <div style="font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.6">
-       Get your API key from <a href="https://www.lcsc.com/faqs/api" target="_blank" style="color:var(--accent)">lcsc.com/faqs/api</a> &mdash; requires a business/agent account. The API uses HMAC-SHA256 signed requests.
+       <div style="font-size:13px;font-weight:600;color:var(--text)">LCSC</div>
+       <div id="lcscKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
      </div>
      <div class="field"><label>API Key</label><input type="password" id="settingsLcscKey" placeholder="LCSC API key" style="font-family:var(--mono);font-size:12px" /></div>
      <div class="field" style="margin-top:10px"><label>API Secret</label><input type="password" id="settingsLcscSecret" placeholder="LCSC API secret (for HMAC signing)" style="font-family:var(--mono);font-size:12px" /></div>
@@ -829,7 +820,7 @@
  </div>
  <div class="add-modal-actions">
  <button class="btn btn-secondary" onclick="closeAddComponentModal()">Cancel</button>
- <button class="btn btn-primary" onclick="confirmAddComponent()">&#x2713; Assign Slot</button>
+ <button class="btn btn-primary" onclick="confirmAddComponent()">Assign Slot</button>
  </div>
  <div id="addCompStatus" class="status-bar" style="margin-top:12px;display:none"></div>
  </div>
@@ -1752,7 +1743,12 @@ function confirmColMapping() {
 // ── INIT ───────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", () => {
  cfg.anthropicKey = localStorage.getItem("nexwah_anthropic_key") || "";
- populateAllLocationDropdowns();
+  cfg.mouserKey    = localStorage.getItem("nexwah_mouser_key") || "";
+  cfg.dkClientId   = localStorage.getItem("nexwah_dk_client_id") || "";
+  cfg.dkSecret     = localStorage.getItem("nexwah_dk_secret") || "";
+  cfg.lcscKey      = localStorage.getItem("nexwah_lcsc_key") || "";
+  cfg.lcscSecret   = localStorage.getItem("nexwah_lcsc_secret") || "";
+  populateAllLocationDropdowns();
  loadSettingsPage();
  document.getElementById("topbarStatus").textContent = "Ready";
  sheetRead().then(() => {
@@ -1990,7 +1986,7 @@ async function saveDrawerLocation() {
    try { await sheetUpdateRowSerial(drawerRowData.rowIdx, rowSerial); } catch(e) { console.warn("Nexwah PN update failed:", e); }
    drawerRowData.location = box; drawerRowData.rowSerial = rowSerial;
    document.getElementById("drawerInfoRows").innerHTML=renderDrawerInfo(drawerRowData.mfrPn, drawerRowData.desc, drawerRowData.qty, box||"—", rowSerial||"—");
-   statusEl.innerHTML=`✓ Nexwah PN saved: ${rowSerial||"(none)"}`; statusEl.className="status-bar ok";
+   statusEl.innerHTML=`Nexwah PN saved: ${rowSerial||"(none)"}`; statusEl.className="status-bar ok";
    toast("Nexwah PN updated: " + (rowSerial||"cleared"));
    _invCache = null; renderInventory();
  } catch(e) { statusEl.innerHTML="Error: "+e.message; statusEl.className="status-bar err"; }
@@ -2017,7 +2013,7 @@ async function submitDrawerUpdate() {
  try {
    const today=todayStr(); await sheetUpdate(rowIdx,newQty,today);
    await sheetAppendTx([today,mfrPn,supplier,drawerAction,qty,currentQty,newQty,notes||drawerAction]);
-   statusEl.innerHTML=`✓ Updated: ${currentQty} → ${newQty} units`; statusEl.className="status-bar ok";
+   statusEl.innerHTML=`Updated: ${currentQty} → ${newQty} units`; statusEl.className="status-bar ok";
    toast(`${drawerAction}: ${mfrPn} → ${newQty} units`);
    _invCache = null; drawerRowData.qty=newQty;
    const pill=document.getElementById("drawerStockPill");
@@ -2061,7 +2057,7 @@ async function submitNewPart() {
      const newQty=existingQty+qty;
      await sheetUpdate(existingIdx,newQty,today);
      await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,existingQty,newQty,notes||"Stock added"]);
-     statusEl.innerHTML=`✓ Updated existing: ${mfrPn}. Stock: ${existingQty} → ${newQty}`; statusEl.className="status-bar ok";
+     statusEl.innerHTML=`Updated existing: ${mfrPn}. Stock: ${existingQty} → ${newQty}`; statusEl.className="status-bar ok";
      toast(`Updated: ${mfrPn} → ${newQty} units`);
    } else {
      const finalLocation=location?claimNextSlot(location):(await autoAssignLocation())||"";
@@ -2070,7 +2066,7 @@ async function submitNewPart() {
      const res=await sheetAppend(row);
      if (res.trim()!=="ok") throw new Error(res);
      await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,0,qty,notes||"New part added"]);
-     statusEl.innerHTML=`✓ Added ${mfrPn} × ${qty} at ${finalLocation||"no location"}`; statusEl.className="status-bar ok";
+     statusEl.innerHTML=`Added ${mfrPn} × ${qty} at ${finalLocation||"no location"}`; statusEl.className="status-bar ok";
      toast(`Added: ${mfrPn}`);
    }
    _invCache=null; renderInventory();
@@ -2150,7 +2146,7 @@ async function confirmTaobaoReceive() {
     if (res.trim()!=="ok") throw new Error(res);
     await sheetAppendTx([today, mfrPn, '', "Receive", qty, 0, qty, notes||`Nexwah PN ${nexwahPn}`]);
     _invCache=null;
-    statusEl.innerHTML=`✓ Registered! MF Part No.: <b style="font-family:var(--mono);font-size:15px">${mfrPn}</b> · Nexwah PN: <b style="font-family:var(--mono);font-size:15px">${nexwahPn}</b>`;
+    statusEl.innerHTML=`Registered! MF Part No.: <b style="font-family:var(--mono);font-size:15px">${mfrPn}</b> · Nexwah PN: <b style="font-family:var(--mono);font-size:15px">${nexwahPn}</b>`;
     statusEl.className="status-bar ok";
     toast(`Registered: ${mfrPn} → ${nexwahPn}`);
     document.getElementById("taobaoMfrPn").value=""; document.getElementById("taobaoDesc").value="";
@@ -2230,7 +2226,7 @@ async function handleScanResult(parsed,dataUrl,method){
  document.getElementById("scanSupplierPn").value="";
  document.getElementById("scanDesc").value=parsed.description||"";
  showSupplierBadge("scanSupplierBadge",parsed.supplier);
- setCamStatus(`✓ Label read via <b>${method}</b>. Edit if needed, then check inventory.`,"ok");
+ setCamStatus(`Label read via <b>${method}</b>. Edit if needed, then check inventory.`,"ok");
  const descUp=(parsed.description||"").toUpperCase();
  for (const [type,locs] of Object.entries(TYPE_SUGGESTIONS)){
    if(descUp.includes(type.split(' ')[0])){ for(const loc of locs){if(getNextSlot(loc)){document.getElementById('scanLocation').value=loc;break;}} break; }
@@ -2261,8 +2257,8 @@ async function lookupForScan(mfrPn){
     }
     const foundNexwahPn = foundRow ? getEffectiveLocation(foundRow, foundIdx) : "";
     showScanInvPanel(foundRow,foundIdx);
-    if(scanMode==="dispatch")setCamStatus(foundRow?`✓ Found — ${foundRow[4]||0} units in stock at ${foundNexwahPn||"unknown Nexwah PN"}.`:`"${mfrPn}" not found in inventory.`,foundRow?"ok":"err");
-    else setCamStatus(foundRow?`✓ Found in inventory. Current stock: ${foundRow[4]||0} units at ${foundNexwahPn||"no Nexwah PN"}.`:`"${mfrPn}" not in inventory yet — add it below.`,foundRow?"ok":"warn");
+    if(scanMode==="dispatch")setCamStatus(foundRow?`Found — ${foundRow[4]||0} units in stock at ${foundNexwahPn||"unknown Nexwah PN"}.`:`"${mfrPn}" not found in inventory.`,foundRow?"ok":"err");
+    else setCamStatus(foundRow?`Found in inventory. Current stock: ${foundRow[4]||0} units at ${foundNexwahPn||"no Nexwah PN"}.`:`"${mfrPn}" not in inventory yet — add it below.`,foundRow?"ok":"warn");
   }catch(e){setCamStatus("Sheet lookup failed: "+e.message,"err");showScanInvPanel(null,-1);}
 }
 function showScanInvPanel(row,rowIdx){
@@ -2329,9 +2325,9 @@ function showScanInvPanel(row,rowIdx){
 }
 function updateReceivePreview(prevQty){const qty=parseInt(document.getElementById("receiveQty")?.value)||0;const el=document.getElementById("receivePreview");if(el)el.textContent=prevQty+qty;}
 function updateDispatchPreview(currentQty){const qty=parseInt(document.getElementById("dispatchQty")?.value)||0;const el=document.getElementById("dispatchPreview");if(el)el.textContent=Math.max(0,currentQty-qty);}
-async function confirmScanDispatch(rowIdx,currentQty){const qty=parseInt(document.getElementById("dispatchQty").value)||0;const notes=document.getElementById("dispatchNotes").value.trim();const statusEl=document.getElementById("scanDispatchStatus");if(qty<=0||qty>currentQty){statusEl.style.display="block";statusEl.innerHTML=`Enter 1–${currentQty}`;statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing…';statusEl.className="status-bar loading";const newQty=currentQty-qty,today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Use",qty,currentQty,newQty,notes||"Scan dispatch"]);statusEl.innerHTML=`✓ Dispatched ${qty}. Remaining: ${newQty}`;statusEl.className="status-bar ok";toast(`Dispatched ${qty} × ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
-async function confirmScanReceiveExisting(rowIdx,currentQty,boxId,existingLoc){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");if(qty<=0){statusEl.style.display="block";statusEl.innerHTML="Enter qty ≥ 1";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing…';statusEl.className="status-bar loading";const newQty=currentQty+qty,today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);if(!existingLoc&&boxId&&LOCATIONS.find(l=>l.id===boxId)){const slot=claimNextSlot(boxId);await sheetUpdateLocation(rowIdx,getBaseLocationId(slot));try{await sheetUpdateRowSerial(rowIdx,slot);}catch(e){console.warn("Nexwah PN update failed:",e);}}const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,currentQty,newQty,notes||"Scan receive"]);statusEl.innerHTML=`✓ Received ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Received ${qty} × ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
-async function confirmScanReceiveNew(){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");const mfrPn=document.getElementById("scanMfrPn").value.trim();const desc=document.getElementById("scanDesc").value.trim();const locationSel=document.getElementById("scanLocation");const locId=locationSel?locationSel.value.trim():"";const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";if(!mfrPn||qty<=0){statusEl.style.display="block";statusEl.innerHTML="Part number and qty required";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Adding…';statusEl.className="status-bar loading";const today=todayStr();try{const rows=await sheetRead();let existingIdx=-1,existingQty=0;for(let i=1;i<rows.length;i++){if(String(rows[i][2]||"").trim().toUpperCase()===mfrPn.toUpperCase()){existingIdx=i+1;existingQty=parseInt(rows[i][4])||0;break;}}if(existingIdx>0){const newQty=existingQty+qty;await sheetUpdate(existingIdx,newQty,today);await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,existingQty,newQty,notes||"Scan receive"]);_invCache=null;statusEl.innerHTML=`✓ Updated existing: ${mfrPn} × ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Stock updated: ${mfrPn} → ${newQty}`);}else{const finalLocation=locId?claimNextSlot(locId):(await autoAssignLocation())||"";const row=makeInventoryRow({mfrPn,desc,qty,box:getBaseLocationId(finalLocation),rowSerial:finalLocation,source:supplier,memo:notes||"Scan receive new"});const res=await sheetAppend(row);if(res.trim()!=="ok")throw new Error(res);await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,0,qty,notes||"Scan receive new"]);_invCache=null;statusEl.innerHTML=`✓ Added ${mfrPn} × ${qty} at ${finalLocation}`;statusEl.className="status-bar ok";toast(`Added: ${mfrPn} → ${finalLocation}`);populateAllLocationDropdowns();}}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
+async function confirmScanDispatch(rowIdx,currentQty){const qty=parseInt(document.getElementById("dispatchQty").value)||0;const notes=document.getElementById("dispatchNotes").value.trim();const statusEl=document.getElementById("scanDispatchStatus");if(qty<=0||qty>currentQty){statusEl.style.display="block";statusEl.innerHTML=`Enter 1–${currentQty}`;statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing…';statusEl.className="status-bar loading";const newQty=currentQty-qty,today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Use",qty,currentQty,newQty,notes||"Scan dispatch"]);statusEl.innerHTML=`Dispatched ${qty}. Remaining: ${newQty}`;statusEl.className="status-bar ok";toast(`Dispatched ${qty} × ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
+async function confirmScanReceiveExisting(rowIdx,currentQty,boxId,existingLoc){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");if(qty<=0){statusEl.style.display="block";statusEl.innerHTML="Enter qty ≥ 1";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Processing…';statusEl.className="status-bar loading";const newQty=currentQty+qty,today=todayStr();try{await sheetUpdate(rowIdx,newQty,today);if(!existingLoc&&boxId&&LOCATIONS.find(l=>l.id===boxId)){const slot=claimNextSlot(boxId);await sheetUpdateLocation(rowIdx,getBaseLocationId(slot));try{await sheetUpdateRowSerial(rowIdx,slot);}catch(e){console.warn("Nexwah PN update failed:",e);}}const mfrPn=document.getElementById("scanMfrPn").value;const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,currentQty,newQty,notes||"Scan receive"]);statusEl.innerHTML=`Received ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Received ${qty} × ${mfrPn}`);}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
+async function confirmScanReceiveNew(){const qty=parseInt(document.getElementById("receiveQty").value)||0;const notes=document.getElementById("receiveNotes").value.trim();const statusEl=document.getElementById("scanReceiveStatus");const mfrPn=document.getElementById("scanMfrPn").value.trim();const desc=document.getElementById("scanDesc").value.trim();const locationSel=document.getElementById("scanLocation");const locId=locationSel?locationSel.value.trim():"";const supplier=document.getElementById("scanSupplierBadge").textContent.trim()||"Unknown";if(!mfrPn||qty<=0){statusEl.style.display="block";statusEl.innerHTML="Part number and qty required";statusEl.className="status-bar err";return;}statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Adding…';statusEl.className="status-bar loading";const today=todayStr();try{const rows=await sheetRead();let existingIdx=-1,existingQty=0;for(let i=1;i<rows.length;i++){if(String(rows[i][2]||"").trim().toUpperCase()===mfrPn.toUpperCase()){existingIdx=i+1;existingQty=parseInt(rows[i][4])||0;break;}}if(existingIdx>0){const newQty=existingQty+qty;await sheetUpdate(existingIdx,newQty,today);await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,existingQty,newQty,notes||"Scan receive"]);_invCache=null;statusEl.innerHTML=`Updated existing: ${mfrPn} × ${qty}. New stock: ${newQty}`;statusEl.className="status-bar ok";toast(`Stock updated: ${mfrPn} → ${newQty}`);}else{const finalLocation=locId?claimNextSlot(locId):(await autoAssignLocation())||"";const row=makeInventoryRow({mfrPn,desc,qty,box:getBaseLocationId(finalLocation),rowSerial:finalLocation,source:supplier,memo:notes||"Scan receive new"});const res=await sheetAppend(row);if(res.trim()!=="ok")throw new Error(res);await sheetAppendTx([today,mfrPn,supplier,"Receive",qty,0,qty,notes||"Scan receive new"]);_invCache=null;statusEl.innerHTML=`Added ${mfrPn} × ${qty} at ${finalLocation}`;statusEl.className="status-bar ok";toast(`Added: ${mfrPn} → ${finalLocation}`);populateAllLocationDropdowns();}}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 
 // ── SCAN HISTORY ───────────────────────────────────────────
 const SCAN_HISTORY_DRIVE_FOLDER = "NEXWAH Scan History";
@@ -2347,7 +2343,7 @@ async function saveScanToHistory(scan) {
     const text = await resp.text();
     let data; try { data = JSON.parse(text); } catch(e) { throw new Error("Bad response: " + text.slice(0,120)); }
     if (!data.ok) throw new Error(data.error || "Save failed.");
-    toast(data.hasImage ? "Scan saved ✓ (image in Google Drive)" : "Scan saved (no image captured).");
+    toast(data.hasImage ? "Scan saved (image in Google Drive)" : "Scan saved (no image captured).");
   } catch(e) { console.error("saveScanToHistory failed:", e); toast("Scan history save failed: " + String(e.message || e)); }
 }
 function makeScanImageFileName(scan) {
@@ -2437,7 +2433,7 @@ function loadSettingsPage() {
   const hasKey=!!cfg.anthropicKey;
   const keyInput=document.getElementById("settingsApiKey"), keyStatusEl=document.getElementById("apiKeyStatus"), statusEl=document.getElementById("settingsStatus");
   if (keyInput) keyInput.value=hasKey?cfg.anthropicKey:"";
-  if (keyStatusEl) keyStatusEl.innerHTML=hasKey?`<div class="alert alert-success">&#x2713; API key saved. Claude Vision scanning enabled.</div>`:`<div class="alert alert-warn">No API key set. Using free OCR (Google Vision &#x2192; Tesseract fallback).</div>`;
+  if (keyStatusEl) keyStatusEl.innerHTML=hasKey?`<div class="alert alert-success">API key saved. Claude Vision scanning enabled.</div>`:`<div class="alert alert-warn">No API key set. Using free OCR (Google Vision &#x2192; Tesseract fallback).</div>`;
   // Populate distributor key fields
   const mki=document.getElementById("settingsMouserKey"); if(mki) mki.value=cfg.mouserKey||"";
   const dki=document.getElementById("settingsDkClientId"); if(dki) dki.value=cfg.dkClientId||"";
@@ -2447,7 +2443,7 @@ function loadSettingsPage() {
   // Update badges
   function setBadge(id, active) {
     const el=document.getElementById(id); if(!el) return;
-    el.textContent=active?"set ✓":"not set";
+    el.textContent=active?"saved":"not set";
     el.style.background=active?"var(--success-bg)":"var(--surface2)";
     el.style.color=active?"var(--success)":"var(--muted)";
     el.style.borderColor=active?"var(--success-border)":"var(--border)";
@@ -2455,9 +2451,9 @@ function loadSettingsPage() {
   setBadge("mouserKeyBadge", !!cfg.mouserKey);
   setBadge("digikeyKeyBadge", !!(cfg.dkClientId && cfg.dkSecret));
   setBadge("lcscKeyBadge", !!(cfg.lcscKey && cfg.lcscSecret));
-  if (statusEl) statusEl.innerHTML=`Anthropic Key: <b>${hasKey?"Set ✓":"Not set"}</b><br>Mouser API: <b>${cfg.mouserKey?"Set ✓":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Set ✓":"Not set"}</b><br>LCSC API: <b>${(cfg.lcscKey&&cfg.lcscSecret)?"Set ✓":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
+  if (statusEl) statusEl.innerHTML=`Anthropic Key: <b>${hasKey?"Saved":"Not set"}</b><br>Mouser API: <b>${cfg.mouserKey?"Saved":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Saved":"Not set"}</b><br>LCSC API: <b>${(cfg.lcscKey&&cfg.lcscSecret)?"Saved":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
 }
-function saveSettingsKey(){const val=document.getElementById("settingsApiKey").value.trim();const msgEl=document.getElementById("settingsKeyMsg");if(!val.startsWith("sk-ant-")){msgEl.style.display="block";msgEl.innerHTML="Key must start with sk-ant-";msgEl.className="status-bar err";return;}cfg.anthropicKey=val;localStorage.setItem("nexwah_anthropic_key",val);msgEl.style.display="block";msgEl.innerHTML="✓ Key saved.";msgEl.className="status-bar ok";toast("API key saved.");loadSettingsPage();}
+function saveSettingsKey(){const val=document.getElementById("settingsApiKey").value.trim();const msgEl=document.getElementById("settingsKeyMsg");if(!val.startsWith("sk-ant-")){msgEl.style.display="block";msgEl.innerHTML="Key must start with sk-ant-";msgEl.className="status-bar err";return;}cfg.anthropicKey=val;localStorage.setItem("nexwah_anthropic_key",val);msgEl.style.display="block";msgEl.innerHTML="Key saved.";msgEl.className="status-bar ok";toast("API key saved.");loadSettingsPage();}
 function removeSettingsKey(){cfg.anthropicKey="";localStorage.removeItem("nexwah_anthropic_key");document.getElementById("settingsApiKey").value="";const msgEl=document.getElementById("settingsKeyMsg");msgEl.style.display="block";msgEl.innerHTML="Key removed.";msgEl.className="status-bar warn";toast("API key removed.");loadSettingsPage();}
 function saveDistKey(dist) {
   const msgEl=document.getElementById("distKeyMsg"); msgEl.style.display="block";
@@ -2465,19 +2461,19 @@ function saveDistKey(dist) {
     const val=document.getElementById("settingsMouserKey").value.trim();
     if (!val) { msgEl.innerHTML="Enter a Mouser API key."; msgEl.className="status-bar err"; return; }
     cfg.mouserKey=val; localStorage.setItem("nexwah_mouser_key",val);
-    msgEl.innerHTML="&#x2713; Mouser key saved."; msgEl.className="status-bar ok"; toast("Mouser API key saved.");
+    msgEl.innerHTML="Mouser key saved."; msgEl.className="status-bar ok"; toast("Mouser API key saved.");
   } else if (dist==="digikey") {
     const id=document.getElementById("settingsDkClientId").value.trim(), sec=document.getElementById("settingsDkSecret").value.trim();
     if (!id||!sec) { msgEl.innerHTML="Enter both Client ID and Client Secret."; msgEl.className="status-bar err"; return; }
     cfg.dkClientId=id; cfg.dkSecret=sec;
     localStorage.setItem("nexwah_dk_client_id",id); localStorage.setItem("nexwah_dk_secret",sec);
-    msgEl.innerHTML="&#x2713; DigiKey credentials saved."; msgEl.className="status-bar ok"; toast("DigiKey credentials saved.");
+    msgEl.innerHTML="DigiKey credentials saved."; msgEl.className="status-bar ok"; toast("DigiKey credentials saved.");
   } else if (dist==="lcsc") {
     const k=document.getElementById("settingsLcscKey").value.trim(), s=document.getElementById("settingsLcscSecret").value.trim();
     if (!k||!s) { msgEl.innerHTML="Enter both API Key and Secret."; msgEl.className="status-bar err"; return; }
     cfg.lcscKey=k; cfg.lcscSecret=s;
     localStorage.setItem("nexwah_lcsc_key",k); localStorage.setItem("nexwah_lcsc_secret",s);
-    msgEl.innerHTML="&#x2713; LCSC credentials saved."; msgEl.className="status-bar ok"; toast("LCSC credentials saved.");
+    msgEl.innerHTML="LCSC credentials saved."; msgEl.className="status-bar ok"; toast("LCSC credentials saved.");
   }
   loadSettingsPage();
 }
@@ -2541,12 +2537,12 @@ async function runBomCheck(mapping,rows){
     document.getElementById("bomResults").innerHTML=`<div class="card"><div class="card-title">Check Complete${setsUsed?' <span style="font-size:11px;color:var(--muted);font-weight:400">(qty × sets)</span>':''}</div><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">Status</th><th style="text-align:right;padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">Parts</th></tr></thead><tbody><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 12px;color:var(--text)">In Stock</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text)">${inStock}</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 12px;color:var(--text)">Not Enough</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text)">${notEnough}</td></tr><tr><td style="padding:9px 12px;color:var(--text)">Not Found</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text)">${notFound}</td></tr></tbody></table></div>`;
     if(bomPendingDispatch.length>0){document.getElementById("bomConfirmPanel").style.display="block";document.getElementById("bomConfirmSummary").innerHTML=`<b>${bomPendingDispatch.length}</b> part(s) can be deducted from stock:<br><span style="font-family:var(--mono);font-size:12px">${bomPendingDispatch.map(i=>`${i.pn} × ${i.qty}`).join("<br>")}</span>`;document.getElementById("bomConfirmStatus").style.display="none";}else{document.getElementById("bomConfirmPanel").style.display="none";}
     document.getElementById("bomExportPanel").style.display="block";
-    document.getElementById("bomStatus").innerHTML=allOk?`✓ All ${totalParts} parts available.`:`⚠ ${totalParts} parts checked — download report for full details.`;
+    document.getElementById("bomStatus").innerHTML=allOk?`All ${totalParts} parts available.`:`⚠ ${totalParts} parts checked — download report for full details.`;
     document.getElementById("bomStatus").className="status-bar "+(allOk?"ok":"warn");
   }catch(e){document.getElementById("bomStatus").innerHTML="Error: "+e.message;document.getElementById("bomStatus").className="status-bar err";}
 }
 function exportBomReport(){if(!_bomOriginalRows.length){toast("No results to export.");return;}try{const wb=XLSX.utils.book_new();const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location"];const exportData=[exportHeaders];_bomOriginalRows.forEach(row=>{const vals=_bomOriginalHeaders.map(h=>row[h]||"");if(row.__status!==undefined){vals.push(row.__status,row.__stock,row.__needed,row.__shortage>0?row.__shortage:"",row.__location);}else{vals.push("","","","","");}exportData.push(vals);});const ws=XLSX.utils.aoa_to_sheet(exportData);XLSX.utils.book_append_sheet(wb,ws,"BOM Check");XLSX.writeFile(wb,"BOM_Check_"+todayStr()+".xlsx");toast("Report downloaded.");}catch(e){toast("Export failed: "+e.message);}}
-async function confirmOrderDispatch(){const statusEl=document.getElementById("bomConfirmStatus");statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Deducting stock…';statusEl.className="status-bar loading";const today=todayStr();try{for(const item of bomPendingDispatch){const newQty=item.currentQty-item.qty;await sheetUpdate(item.rowIdx,newQty,today);await sheetAppendTx([today,item.pn,"Order Check","Use",item.qty,item.currentQty,newQty,"Order dispatch"]);}statusEl.innerHTML=`✓ Stock deducted for ${bomPendingDispatch.length} parts.`;statusEl.className="status-bar ok";toast("Order dispatched.");bomPendingDispatch=[];document.getElementById("bomConfirmPanel").style.display="none";}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
+async function confirmOrderDispatch(){const statusEl=document.getElementById("bomConfirmStatus");statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Deducting stock…';statusEl.className="status-bar loading";const today=todayStr();try{for(const item of bomPendingDispatch){const newQty=item.currentQty-item.qty;await sheetUpdate(item.rowIdx,newQty,today);await sheetAppendTx([today,item.pn,"Order Check","Use",item.qty,item.currentQty,newQty,"Order dispatch"]);}statusEl.innerHTML=`Stock deducted for ${bomPendingDispatch.length} parts.`;statusEl.className="status-bar ok";toast("Order dispatched.");bomPendingDispatch=[];document.getElementById("bomConfirmPanel").style.display="none";}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 function cancelOrderDispatch(){document.getElementById("bomConfirmPanel").style.display="none";bomPendingDispatch=[];}
 function downloadSampleCSV(){downloadFile("sample_order_bom.csv","text/csv","Part Number,Quantity,Description\nSN74LVC1G08DCKR,100,IC Gate AND\nGRM188R71H104KA93D,500,Cap 100nF 50V\n");}
 
@@ -2567,7 +2563,7 @@ async function runBulkPreview(mapping,rows){
     document.getElementById("bulkConfirmPanel").style.display="block";
     document.getElementById("bulkConfirmSummary").innerHTML=`${bulkPendingItems.length} parts ready: ${bulkPendingItems.filter(i=>i.isNew).length} new, ${bulkPendingItems.filter(i=>!i.isNew).length} existing.`;
     document.getElementById("bulkConfirmStatus").style.display="none";
-    document.getElementById("bulkStatus").innerHTML=`✓ ${bulkPendingItems.length} parts parsed.`;document.getElementById("bulkStatus").className="status-bar ok";
+    document.getElementById("bulkStatus").innerHTML=`${bulkPendingItems.length} parts parsed.`;document.getElementById("bulkStatus").className="status-bar ok";
   }catch(e){document.getElementById("bulkStatus").innerHTML="Error: "+e.message;document.getElementById("bulkStatus").className="status-bar err";}
 }
 async function confirmBulkReceive(){
@@ -2582,7 +2578,7 @@ async function confirmBulkReceive(){
         await sheetAppend(row);await sheetAppendTx([today,item.mfrPn,item.supplier,"Receive",item.qty,0,item.qty,"Bulk receive"]);
       }else{const newQty=item.currentQty+item.qty;await sheetUpdate(item.rowIdx,newQty,today);await sheetAppendTx([today,item.mfrPn,item.supplier,"Receive",item.qty,item.currentQty,newQty,"Bulk receive"]);}
     }));
-    _invCache=null;statusEl.innerHTML=`✓ Done. ${bulkPendingItems.length} parts updated.`;statusEl.className="status-bar ok";
+    _invCache=null;statusEl.innerHTML=`Done. ${bulkPendingItems.length} parts updated.`;statusEl.className="status-bar ok";
     toast(`Bulk receive: ${bulkPendingItems.length} parts added.`);bulkPendingItems=[];document.getElementById("bulkConfirmPanel").style.display="none";
   }catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}
 }
