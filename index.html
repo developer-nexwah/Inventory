@@ -1029,17 +1029,34 @@ async function searchMarketPrice() {
         const tokenData = await tokenResp.json();
         const token = tokenData.access_token;
         if (!token) throw new Error(tokenData.error_description || 'DigiKey auth failed');
-        const dkResp = await fetch(`https://api.digikey.com/Search/v3/Products/${encodeURIComponent(partNumber)}`, {
-          headers: { 'Authorization': `Bearer ${token}`, 'X-DIGIKEY-Client-Id': dkClientId, 'X-DIGIKEY-Locale-Site': 'SG', 'X-DIGIKEY-Locale-Currency': 'USD' }
-        });
-        const dkData = await dkResp.json();
-        const dkPart = dkData?.Product;
+        // Try v4 first, fall back to v3
+        let dkPart = null;
+        const dkHeaders = { 'Authorization': `Bearer ${token}`, 'X-DIGIKEY-Client-Id': dkClientId, 'X-DIGIKEY-Locale-Site': 'US', 'X-DIGIKEY-Locale-Currency': 'USD', 'X-DIGIKEY-Locale-Language': 'en' };
+        
+        // v4 endpoint
+        const dkResp4 = await fetch(`https://api.digikey.com/products/v4/search/${encodeURIComponent(partNumber)}/productdetails`, { headers: dkHeaders });
+        if (dkResp4.ok) {
+          const dkData4 = await dkResp4.json();
+          dkPart = dkData4?.Product || dkData4?.product || null;
+        }
+        
+        // fall back to v3 if v4 failed
+        if (!dkPart) {
+          const dkResp3 = await fetch(`https://api.digikey.com/Search/v3/Products/${encodeURIComponent(partNumber)}`, { headers: dkHeaders });
+          if (dkResp3.ok) {
+            const dkData3 = await dkResp3.json();
+            dkPart = dkData3?.Product || null;
+          }
+        }
+
         if (dkPart) {
-          if (!results.description && dkPart.Description?.ProductDescription) results.description = dkPart.Description.ProductDescription;
-          const dkBreaks = (dkPart.StandardPricing || []).map(pb => ({ qty: pb.BreakQuantity, price: pb.UnitPrice })).filter(pb => pb.qty > 0 && pb.price > 0);
+          if (!results.description) results.description = dkPart.Description?.ProductDescription || dkPart.description?.productDescription || dkPart.Description || '';
+          const pricing = dkPart.StandardPricing || dkPart.standardPricing || dkPart.ProductVariations?.[0]?.StandardPricing || [];
+          const dkBreaks = pricing.map(pb => ({ qty: pb.BreakQuantity || pb.breakQuantity, price: pb.UnitPrice || pb.unitPrice })).filter(pb => pb.qty > 0 && pb.price > 0);
+          const dkStock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? dkPart.QuantityOnHand ?? 0;
           results.distributors.push({
-            name: 'DigiKey', stock: dkPart.QuantityAvailable || 0, currency: 'USD', price_breaks: dkBreaks,
-            url: distUrls.DigiKey, in_stock: (dkPart.QuantityAvailable || 0) > 0
+            name: 'DigiKey', stock: dkStock, currency: 'USD', price_breaks: dkBreaks,
+            url: distUrls.DigiKey, in_stock: dkStock > 0
           });
         } else {
           results.distributors.push({ name: 'DigiKey', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.DigiKey, in_stock: false });
