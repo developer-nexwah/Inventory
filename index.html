@@ -582,7 +582,7 @@
    Get keys free at:
    <a href="https://www.mouser.com/api-hub/" target="_blank" style="color:var(--accent)">Mouser API Hub</a> &nbsp;&middot;&nbsp;
    <a href="https://developer.digikey.com/" target="_blank" style="color:var(--accent)">DigiKey Developer Portal</a> &nbsp;&middot;&nbsp;
-   LCSC has no public API (will show search link only)
+   LCSC API requires application approval at lcsc.com
  </div>
 
  <div style="display:flex;flex-direction:column;gap:14px;max-width:540px">
@@ -2398,8 +2398,25 @@ function loadSettingsPage() {
   const hasKey=!!cfg.anthropicKey;
   const keyInput=document.getElementById("settingsApiKey"), keyStatusEl=document.getElementById("apiKeyStatus"), statusEl=document.getElementById("settingsStatus");
   if (keyInput) keyInput.value=hasKey?cfg.anthropicKey:"";
-  if (keyStatusEl) keyStatusEl.innerHTML=hasKey?`<div class="alert alert-success">✓ API key saved. Claude Vision scanning &amp; Market Price enabled.</div>`:`<div class="alert alert-warn">No API key set. Using free OCR (Google Vision → Tesseract fallback). Market Price requires a key.</div>`;
-  if (statusEl) statusEl.innerHTML=`API Key: <b>${hasKey?"Set ✓":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b><br>Scan History: <b>Google Sheets (ScanHistory tab)</b><br>Market Price: <b>${hasKey?"Enabled (Mouser · DigiKey · LCSC)":"Requires API key"}</b>`;
+  if (keyStatusEl) keyStatusEl.innerHTML=hasKey?`<div class="alert alert-success">&#x2713; API key saved. Claude Vision scanning enabled.</div>`:`<div class="alert alert-warn">No API key set. Using free OCR (Google Vision &#x2192; Tesseract fallback).</div>`;
+  // Populate distributor key fields
+  const mki=document.getElementById("settingsMouserKey"); if(mki) mki.value=cfg.mouserKey||"";
+  const dki=document.getElementById("settingsDkClientId"); if(dki) dki.value=cfg.dkClientId||"";
+  const dks=document.getElementById("settingsDkSecret"); if(dks) dks.value=cfg.dkSecret||"";
+  const lki=document.getElementById("settingsLcscKey"); if(lki) lki.value=cfg.lcscKey||"";
+  const lks=document.getElementById("settingsLcscSecret"); if(lks) lks.value=cfg.lcscSecret||"";
+  // Update badges
+  function setBadge(id, active) {
+    const el=document.getElementById(id); if(!el) return;
+    el.textContent=active?"set ✓":"not set";
+    el.style.background=active?"var(--success-bg)":"var(--surface2)";
+    el.style.color=active?"var(--success)":"var(--muted)";
+    el.style.borderColor=active?"var(--success-border)":"var(--border)";
+  }
+  setBadge("mouserKeyBadge", !!cfg.mouserKey);
+  setBadge("digikeyKeyBadge", !!(cfg.dkClientId && cfg.dkSecret));
+  setBadge("lcscKeyBadge", !!(cfg.lcscKey && cfg.lcscSecret));
+  if (statusEl) statusEl.innerHTML=`Anthropic Key: <b>${hasKey?"Set ✓":"Not set"}</b><br>Mouser API: <b>${cfg.mouserKey?"Set ✓":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Set ✓":"Not set"}</b><br>LCSC API: <b>${(cfg.lcscKey&&cfg.lcscSecret)?"Set ✓":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
 }
 function saveSettingsKey(){const val=document.getElementById("settingsApiKey").value.trim();const msgEl=document.getElementById("settingsKeyMsg");if(!val.startsWith("sk-ant-")){msgEl.style.display="block";msgEl.innerHTML="Key must start with sk-ant-";msgEl.className="status-bar err";return;}cfg.anthropicKey=val;localStorage.setItem("nexwah_anthropic_key",val);msgEl.style.display="block";msgEl.innerHTML="✓ Key saved.";msgEl.className="status-bar ok";toast("API key saved.");loadSettingsPage();}
 function removeSettingsKey(){cfg.anthropicKey="";localStorage.removeItem("nexwah_anthropic_key");document.getElementById("settingsApiKey").value="";const msgEl=document.getElementById("settingsKeyMsg");msgEl.style.display="block";msgEl.innerHTML="Key removed.";msgEl.className="status-bar warn";toast("API key removed.");loadSettingsPage();}
