@@ -455,6 +455,7 @@
  <button class="loc-filter-btn active" onclick="setLocFilter('all',this)">All</button>
  <button class="loc-filter-btn" onclick="setLocFilter('PB',this)">PB</button>
  <button class="loc-filter-btn" onclick="setLocFilter('T',this)">T</button>
+ <button class="loc-filter-btn" onclick="setLocFilter('TR',this)">TR</button>
  <button class="loc-filter-btn" onclick="setLocFilter('LB',this)">LB</button>
  <button class="loc-filter-btn" onclick="setLocFilter('DR',this)">DR</button>
  <button class="loc-filter-btn" onclick="setLocFilter('PD',this)">PD</button>
@@ -1467,6 +1468,7 @@ const PB_NAMES = {
 const LOCATIONS = [
   ...Array.from({ length: 73 }, (_, i) => makeLoc('PB' + i, PB_NAMES['PB' + i] || '', 'PB')),
   ...locRange('T', 1, 20, { T01:'USB', T02:'简易牛角座排线插座', T03:'连接器插头牛角座', T05:'排母 连接器' }),
+  makeLoc('TR1','电阻料盘 RES0603','TR'), makeLoc('TR2','电容料盘','TR'), makeLoc('TR3','芯片料盘','TR'), makeLoc('TR4','RES0402','TR'), makeLoc('TR5','CHIP','TR'), makeLoc('TR6','芯片料盘','TR'),
   ...locRange('LB', 1, 36),
   ...locRange('DR', 1, 12, { DR03:'Module 模块', DR04:'EVK TOOLS', DR06:'CONNECTOR 连接器', DR07:'MISC' }),
   ...locRange('PD', 1, 10, { PD09:'PCB板' }),
@@ -1674,13 +1676,19 @@ function renderLocations() {
  const search = normalizeLocText(searchRaw);
  const grid = document.getElementById('locGrid');
  if (!grid) return;
- const mainTypes = ['PB','T','LB','DR','PD','SD','BX','CN','SF'];
+ const mainTypes = ['PB','T','TR','LB','DR','PD','SD','BX','CN','SF'];
  const filtered = LOCATIONS.filter(l => {
    const locType = l.type || ((l.id.match(/^[A-Z]+/) || ['OTHER'])[0]);
    const matchFilter = locFilter === 'all'
      || (locFilter === 'OTHER' && !mainTypes.includes(locType))
      || locType === locFilter || l.id.startsWith(locFilter);
-   const matchSearch = !search || normalizeLocText(l.id).includes(search) || normalizeLocText(l.name).includes(search);
+   // ID: match from start OR exact contains; Name: only match whole-word boundaries
+  const normId   = normalizeLocText(l.id);
+  const normName = normalizeLocText(l.name);
+  const idMatch  = normId.startsWith(search) || normId.includes(search);
+  // For name, only match if search is 3+ chars to avoid false positives like "tr" in "transistor"
+  const nameMatch = search.length >= 3 && normName.includes(search);
+  const matchSearch = !search || idMatch || nameMatch;
    return matchFilter && matchSearch;
  });
  grid.innerHTML = '';
