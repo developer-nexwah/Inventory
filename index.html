@@ -1361,9 +1361,14 @@ function getCapacity(locId) { return locCapacity[locId] || 100; }
 function isFullSlotLabel(value) { return /^[A-Za-z0-9]+-\d+$/.test(String(value||'').trim()); }
 function getBaseLocationId(value) {
   const base = String(value||'').trim().replace(/-\d+$/, '').toUpperCase();
-  // Normalize: remove leading zeros from trailing digits e.g. TR01->TR1, PB02->PB02 (keep PB padding)
-  // Only strip for prefixes that use unpadded IDs: TR
   return base.replace(/^(TR)(0+)([1-9]\d*)$/, '$1$3');
+}
+function normalizeNexwahPn(value) {
+  // Strip leading zeros from both location prefix and slot number for TR locations
+  // e.g. TR02-02 -> TR2-2, TR01-31 -> TR1-31, PB26-25 stays PB26-25
+  return String(value||'').replace(/^(TR)(0*)([1-9]\d*)-(0*)([1-9]\d*)$/i,
+    (_, prefix, _z1, locNum, _z2, slotNum) => prefix.toUpperCase() + locNum + '-' + slotNum
+  );
 }
 function getSlotNumber(value) {
   const m = String(value||'').trim().match(/-(\d+)$/);
