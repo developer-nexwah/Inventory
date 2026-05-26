@@ -610,19 +610,7 @@
      </div>
    </div>
 
-   <!-- LCSC -->
-   <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
-     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-       <div style="font-size:13px;font-weight:600;color:var(--text)">LCSC</div>
-       <div id="lcscKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
-     </div>
-     <div class="field"><label>API Key</label><input type="password" id="settingsLcscKey" placeholder="LCSC API key" style="font-family:var(--mono);font-size:12px" /></div>
-     <div class="field" style="margin-top:10px"><label>API Secret</label><input type="password" id="settingsLcscSecret" placeholder="LCSC API secret (for HMAC signing)" style="font-family:var(--mono);font-size:12px" /></div>
-     <div class="btn-row" style="margin-top:10px">
-       <button class="btn btn-primary btn-sm" onclick="saveDistKey('lcsc')">Save</button>
-       <button class="btn btn-danger btn-sm" onclick="removeDistKey('lcsc')">Remove</button>
-     </div>
-   </div>
+
  </div>
  <div id="distKeyMsg" class="status-bar" style="margin-top:12px;display:none"></div>
  </div>
@@ -902,7 +890,7 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfw6qOsjA0wiKn
 const SCAN_HISTORY_SHEET = "ScanHistory";
 const MAX_IMAGE_SIZE = 600;
 
-let cfg = { sheetName: "Sheet1", anthropicKey: "", mouserKey: "", dkClientId: "", dkSecret: "", lcscKey: "", lcscSecret: "" };
+let cfg = { sheetName: "Sheet1", anthropicKey: "", mouserKey: "", dkClientId: "", dkSecret: "" };
 let currentStream = null;
 let currentScan = null;
 const SCAN_REGION = { x: 0.10, y: 0.15, w: 0.80, h: 0.70 };
@@ -925,14 +913,6 @@ function setMpQty(qty, btn) {
   if (mpCurrentData) renderMpDistCards(mpCurrentData);
 }
 
-// HMAC-SHA256 helper using WebCrypto (browser built-in, no library needed)
-async function hmacSha256Hex(secret, message) {
-  const enc = new TextEncoder();
-  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(message));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
 async function searchMarketPrice() {
   const partNumber = document.getElementById('mpSearchInput').value.trim();
   const statusEl = document.getElementById('mpStatus');
@@ -946,7 +926,7 @@ async function searchMarketPrice() {
     return;
   }
 
-  if (!cfg.mouserKey && !cfg.dkClientId && !cfg.lcscKey) {
+  if (!cfg.mouserKey && !cfg.dkClientId) {
     noKeyWarn.style.display = 'block';
     statusEl.style.display = 'none';
     return;
@@ -960,7 +940,6 @@ async function searchMarketPrice() {
   const distUrls = {
     Mouser:  `https://www.mouser.com/Search/Refine?Keyword=${pn}`,
     DigiKey: `https://www.digikey.com/en/products/result?keywords=${pn}`,
-    LCSC:    `https://www.lcsc.com/search?q=${pn}`
   };
 
   statusEl.style.display = 'block';
@@ -1082,46 +1061,6 @@ async function searchMarketPrice() {
       results.distributors.push({ name: 'DigiKey', stock: null, currency: 'USD', price_breaks: [], url: distUrls.DigiKey, in_stock: false, noKey: true });
     }
 
-    // ── LCSC ────────────────────────────────────────────────────────────────────
-    const lcscKey = cfg.lcscKey, lcscSecret = cfg.lcscSecret;
-    if (lcscKey && lcscSecret) {
-      statusEl.innerHTML = '<span class="spinner"></span>Querying LCSC API…';
-      try {
-        const lcscNonce = Math.random().toString(36).substring(2,18).padEnd(16,'0').slice(0,16);
-        const lcscTs = String(Date.now());
-        const msgToSign = lcscKey + lcscNonce + lcscTs;
-        const lcscSig = await hmacSha256Hex(lcscSecret, msgToSign);
-        const lcscParams = new URLSearchParams({
-          key: lcscKey, nonce: lcscNonce, signature: lcscSig, timestamp: lcscTs,
-          keyword: partNumber, match_type: 'exact', current_page: '1', page_size: '5',
-          is_available: 'false', currency: 'USD'
-        });
-        const lcscResp = await fetch('https://ips.lcsc.com/rest/wmsc2agent/search/product?' + lcscParams.toString());
-        const lcscData = await lcscResp.json();
-        const lcscParts = lcscData?.result?.list || lcscData?.data?.list || lcscData?.list || [];
-        const lcscPart = lcscParts[0];
-        if (lcscPart) {
-          if (!results.description && lcscPart.productIntroEn) results.description = lcscPart.productIntroEn;
-          const lcscRawBreaks = lcscPart.prices || lcscPart.priceList || [];
-          const lcscBreaks = lcscRawBreaks.map(pb => ({
-            qty: parseInt(pb.ladder || pb.quantity || pb.startNumber || 1),
-            price: parseFloat(pb.usdPrice || pb.price || 0)
-          })).filter(pb => pb.qty > 0 && pb.price > 0);
-          const lcscStock = parseInt(lcscPart.stockNumber || lcscPart.stock || 0);
-          results.distributors.push({
-            name: 'LCSC', stock: lcscStock, currency: 'USD', price_breaks: lcscBreaks,
-            url: lcscPart.productUrl ? 'https://www.lcsc.com' + lcscPart.productUrl : distUrls.LCSC,
-            in_stock: lcscStock > 0
-          });
-        } else {
-          results.distributors.push({ name: 'LCSC', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.LCSC, in_stock: false });
-        }
-      } catch(e) {
-        results.distributors.push({ name: 'LCSC', stock: 0, currency: 'USD', price_breaks: [], url: distUrls.LCSC, in_stock: false, error: e.message });
-      }
-    } else {
-      results.distributors.push({ name: 'LCSC', stock: null, currency: 'USD', price_breaks: [], url: distUrls.LCSC, in_stock: false, noKey: true });
-    }
 
     mpCurrentData = results;
     mpCurrentQty = 1;
@@ -1187,8 +1126,8 @@ function renderMpDistCards(data) {
     .filter(p => p !== null && p > 0);
   const bestPriceAtQty = pricesAtQty.length ? Math.min(...pricesAtQty) : null;
 
-  const distColors = { Mouser: '#15803d', DigiKey: '#1d4ed8', LCSC: '#c2410c' };
-  const distOrder = ['Mouser', 'DigiKey', 'LCSC'];
+  const distColors = { Mouser: '#15803d', DigiKey: '#1d4ed8' };
+  const distOrder = ['Mouser', 'DigiKey'];
 
   // Sort by known order, unknowns at end
   const sorted = [...distributors].sort((a, b) => {
@@ -1765,8 +1704,6 @@ window.addEventListener("DOMContentLoaded", () => {
   cfg.mouserKey    = localStorage.getItem("nexwah_mouser_key") || "";
   cfg.dkClientId   = localStorage.getItem("nexwah_dk_client_id") || "";
   cfg.dkSecret     = localStorage.getItem("nexwah_dk_secret") || "";
-  cfg.lcscKey      = localStorage.getItem("nexwah_lcsc_key") || "";
-  cfg.lcscSecret   = localStorage.getItem("nexwah_lcsc_secret") || "";
   populateAllLocationDropdowns();
  loadSettingsPage();
  document.getElementById("topbarStatus").textContent = "Ready";
@@ -2457,8 +2394,6 @@ function loadSettingsPage() {
   const mki=document.getElementById("settingsMouserKey"); if(mki) mki.value=cfg.mouserKey||"";
   const dki=document.getElementById("settingsDkClientId"); if(dki) dki.value=cfg.dkClientId||"";
   const dks=document.getElementById("settingsDkSecret"); if(dks) dks.value=cfg.dkSecret||"";
-  const lki=document.getElementById("settingsLcscKey"); if(lki) lki.value=cfg.lcscKey||"";
-  const lks=document.getElementById("settingsLcscSecret"); if(lks) lks.value=cfg.lcscSecret||"";
   // Update badges
   function setBadge(id, active) {
     const el=document.getElementById(id); if(!el) return;
@@ -2469,8 +2404,7 @@ function loadSettingsPage() {
   }
   setBadge("mouserKeyBadge", !!cfg.mouserKey);
   setBadge("digikeyKeyBadge", !!(cfg.dkClientId && cfg.dkSecret));
-  setBadge("lcscKeyBadge", !!(cfg.lcscKey && cfg.lcscSecret));
-  if (statusEl) statusEl.innerHTML=`Anthropic Key: <b>${hasKey?"Saved":"Not set"}</b><br>Mouser API: <b>${cfg.mouserKey?"Saved":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Saved":"Not set"}</b><br>LCSC API: <b>${(cfg.lcscKey&&cfg.lcscSecret)?"Saved":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
+  if (statusEl) statusEl.innerHTML=`Anthropic Key: <b>${hasKey?"Saved":"Not set"}</b><br>Mouser API: <b>${cfg.mouserKey?"Saved":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Saved":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
 }
 function saveSettingsKey(){const val=document.getElementById("settingsApiKey").value.trim();const msgEl=document.getElementById("settingsKeyMsg");if(!val.startsWith("sk-ant-")){msgEl.style.display="block";msgEl.innerHTML="Key must start with sk-ant-";msgEl.className="status-bar err";return;}cfg.anthropicKey=val;localStorage.setItem("nexwah_anthropic_key",val);msgEl.style.display="block";msgEl.innerHTML="Key saved.";msgEl.className="status-bar ok";toast("API key saved.");loadSettingsPage();}
 function removeSettingsKey(){cfg.anthropicKey="";localStorage.removeItem("nexwah_anthropic_key");document.getElementById("settingsApiKey").value="";const msgEl=document.getElementById("settingsKeyMsg");msgEl.style.display="block";msgEl.innerHTML="Key removed.";msgEl.className="status-bar warn";toast("API key removed.");loadSettingsPage();}
@@ -2487,12 +2421,6 @@ function saveDistKey(dist) {
     cfg.dkClientId=id; cfg.dkSecret=sec;
     localStorage.setItem("nexwah_dk_client_id",id); localStorage.setItem("nexwah_dk_secret",sec);
     msgEl.innerHTML="DigiKey credentials saved."; msgEl.className="status-bar ok"; toast("DigiKey credentials saved.");
-  } else if (dist==="lcsc") {
-    const k=document.getElementById("settingsLcscKey").value.trim(), s=document.getElementById("settingsLcscSecret").value.trim();
-    if (!k||!s) { msgEl.innerHTML="Enter both API Key and Secret."; msgEl.className="status-bar err"; return; }
-    cfg.lcscKey=k; cfg.lcscSecret=s;
-    localStorage.setItem("nexwah_lcsc_key",k); localStorage.setItem("nexwah_lcsc_secret",s);
-    msgEl.innerHTML="LCSC credentials saved."; msgEl.className="status-bar ok"; toast("LCSC credentials saved.");
   }
   loadSettingsPage();
 }
@@ -2500,7 +2428,6 @@ function removeDistKey(dist) {
   const msgEl=document.getElementById("distKeyMsg"); msgEl.style.display="block";
   if (dist==="mouser") { cfg.mouserKey=""; localStorage.removeItem("nexwah_mouser_key"); document.getElementById("settingsMouserKey").value=""; msgEl.innerHTML="Mouser key removed."; msgEl.className="status-bar warn"; toast("Mouser key removed."); }
   else if (dist==="digikey") { cfg.dkClientId=""; cfg.dkSecret=""; localStorage.removeItem("nexwah_dk_client_id"); localStorage.removeItem("nexwah_dk_secret"); document.getElementById("settingsDkClientId").value=""; document.getElementById("settingsDkSecret").value=""; msgEl.innerHTML="DigiKey credentials removed."; msgEl.className="status-bar warn"; toast("DigiKey credentials removed."); }
-  else if (dist==="lcsc") { cfg.lcscKey=""; cfg.lcscSecret=""; localStorage.removeItem("nexwah_lcsc_key"); localStorage.removeItem("nexwah_lcsc_secret"); document.getElementById("settingsLcscKey").value=""; document.getElementById("settingsLcscSecret").value=""; msgEl.innerHTML="LCSC credentials removed."; msgEl.className="status-bar warn"; toast("LCSC credentials removed."); }
   loadSettingsPage();
 }
 
@@ -2549,9 +2476,9 @@ async function runBomCheck(mapping,rows){
   const setsUsed=mapping.Sets&&items.some(i=>i.sets>1);
   try{
     const sheetRows=await sheetRead(),inv={},invByLoc={};
-    sheetRows.slice(1).forEach((r,i)=>{if(r[2])inv[String(r[2]||"").toUpperCase()]={rowIdx:i+2,qty:parseInt(r[4])||0,location:r[5]||""};if(r[5])invByLoc[String(r[5]||"").toUpperCase()]={rowIdx:i+2,qty:parseInt(r[4])||0,location:r[5]||"",mpn:r[2]||""};});
+    sheetRows.slice(1).forEach((r,i)=>{const nexwahPn=normalizeNexwahPn(String(r[7]||r[6]||'').trim())||String(r[5]||'').trim();if(r[2])inv[String(r[2]||"").toUpperCase()]={rowIdx:i+2,qty:parseInt(r[4])||0,location:r[5]||"",nexwahPn};if(r[5])invByLoc[String(r[5]||"").toUpperCase()]={rowIdx:i+2,qty:parseInt(r[4])||0,location:r[5]||"",nexwahPn,mpn:r[2]||""};});
     let totalParts=0,inStock=0,notEnough=0,notFound=0; bomPendingDispatch=[];
-    items.forEach(({pn,qty,qtyPerSet,sets,_row})=>{totalParts++;const key=pn.toUpperCase();const stock=inv[key]||invByLoc[key];if(!stock){notFound++;_row.__status="NOT IN INVENTORY";_row.__stock=0;_row.__needed=qty;_row.__shortage=qty;_row.__location="";}else if(stock.qty<qty){notEnough++;_row.__status="NOT ENOUGH";_row.__stock=stock.qty;_row.__needed=qty;_row.__shortage=qty-stock.qty;_row.__location=stock.location||"";}else{inStock++;bomPendingDispatch.push({pn,qty,rowIdx:stock.rowIdx,currentQty:stock.qty});_row.__status="IN STOCK";_row.__stock=stock.qty;_row.__needed=qty;_row.__shortage=0;_row.__location=stock.location||"";}});
+    items.forEach(({pn,qty,qtyPerSet,sets,_row})=>{totalParts++;const key=pn.toUpperCase();const stock=inv[key]||invByLoc[key];if(!stock){notFound++;_row.__status="NOT IN INVENTORY";_row.__stock=0;_row.__needed=qty;_row.__shortage=qty;_row.__location="";}else if(stock.qty<qty){notEnough++;_row.__status="NOT ENOUGH";_row.__stock=stock.qty;_row.__needed=qty;_row.__shortage=qty-stock.qty;_row.__location=stock.location||"";}else{inStock++;bomPendingDispatch.push({pn,qty,rowIdx:stock.rowIdx,currentQty:stock.qty});_row.__status="IN STOCK";_row.__stock=stock.qty;_row.__needed=qty;_row.__shortage=0;_row.__location=stock.nexwahPn||stock.location||"";}});
     const allOk=notFound===0&&notEnough===0;
     document.getElementById("bomResults").innerHTML=`<div class="card"><div class="card-title">Check Complete${setsUsed?' <span style="font-size:11px;color:var(--muted);font-weight:400">(qty × sets)</span>':''}</div><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">Status</th><th style="text-align:right;padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">Parts</th></tr></thead><tbody><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 12px;color:var(--text)">In Stock</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text)">${inStock}</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 12px;color:var(--text)">Not Enough</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text)">${notEnough}</td></tr><tr><td style="padding:9px 12px;color:var(--text)">Not Found</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text)">${notFound}</td></tr></tbody></table></div>`;
     if(bomPendingDispatch.length>0){document.getElementById("bomConfirmPanel").style.display="block";document.getElementById("bomConfirmSummary").innerHTML=`<b>${bomPendingDispatch.length}</b> part(s) can be deducted from stock:<br><span style="font-family:var(--mono);font-size:12px">${bomPendingDispatch.map(i=>`${i.pn} × ${i.qty}`).join("<br>")}</span>`;document.getElementById("bomConfirmStatus").style.display="none";}else{document.getElementById("bomConfirmPanel").style.display="none";}
