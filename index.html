@@ -1334,12 +1334,20 @@ function slotLabel(locId, n) { return `${locId}-${pad2(n)}`; }
 
 function getSheetLocation(row) { return String((row && row[5]) || '').trim(); }
 function getSheetRowSerial(row) {
-  // Column H (index 7) = full NexwahPN e.g. "TR01-31", Column G (index 6) = slot number only
-  const col7 = String((row && row[7]) || '').trim();
-  const col6 = String((row && row[6]) || '').trim();
-  // Prefer col7 if it looks like a full slot label (e.g. PB26-25, TR01-31)
+  const col7 = String((row && row[7]) || '').trim(); // Column H — full NexwahPN
+  const col6 = String((row && row[6]) || '').trim(); // Column G — slot number or full PN
+  const col5 = String((row && row[5]) || '').trim(); // Column F — box/location ID
+
+  // Prefer col7 if it's a full slot label like PB50-3
   if (col7 && /^[A-Z]/.test(col7)) return col7;
-  return col6;
+
+  // Use col6 if it's already a full slot label
+  if (isFullSlotLabel(col6)) return col6;
+
+  // Assemble from col5 + col6 if col6 is just a number
+  if (col5 && col6 && /^\d+$/.test(col6)) return col5 + '-' + col6;
+
+  return col6 || col5;
 }
 function makeInventoryRow({mfrPn, desc, qty, box, rowSerial, source='', memo=''}) {
   const today = todayStr();
