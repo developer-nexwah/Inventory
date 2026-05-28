@@ -2832,6 +2832,7 @@ function detectCarrier(raw){
   if(/^[A-Z]{2}\d{9}[A-Z]{2}$/.test(t)){const s=t.slice(-2);const names={SG:"SingPost",GB:"Royal Mail",NL:"PostNL",CN:"China Post/EMS",US:"USPS",MY:"Pos Malaysia",DE:"Deutsche Post"};const urls={SG:`https://www.singpost.com/track-items#${t}`,GB:`https://www.royalmail.com/track-your-item#/tracking-results/${t}`,CN:`https://www.ems.com.cn/queryList?mailNo=${t}`};return{name:names[s]||"Postal ("+s+")",desc:"International postal",url:urls[s]||`https://track.aftership.com/${t}`};}
   if(/^JT/i.test(t))return{name:"J&T Express",desc:"J&T Express (SEA)",url:`https://www.jtexpress.sg/index/query/gzquery.html?bills=${t}`};
   if(/^(NNVSG|NNVMY|NV[A-Z]{2})/i.test(t))return{name:"Ninja Van",desc:"Ninja Van (SEA)",url:`https://www.ninjavan.co/en-sg/tracking?id=${t}`};
+  if(/^\d{12}$/.test(t)||/^\d{15}$/.test(t)||/^\d{20}$/.test(t))return{name:"FedEx",desc:"Federal Express",url:`https://www.fedex.com/fedextrack/?trknbr=${t}`};
   if(/^\d{10}$/.test(t))return{name:"DHL Express",desc:"DHL Express",url:`https://www.dhl.com/sg-en/home/tracking.html?tracking-id=${t}&submit=1`};
   if(/^SF\d+/i.test(t))return{name:"SF Express",desc:"SF Express",url:`https://www.sf-international.com/sg/en/dynamic_function/waybill/#search/bill_numbers=${t}`};
   return{name:"Unknown carrier",desc:"Using universal tracker",url:`https://track.aftership.com/${t}`};
