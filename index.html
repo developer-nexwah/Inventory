@@ -574,11 +574,11 @@
    <div class="table-wrap" id="ordersTableWrap">
      <table>
        <thead><tr>
-         <th>Order ID</th><th>Company</th><th>Contact</th>
-         <th>Description</th><th>Status</th><th>Tracking No.</th><th>Date</th><th>Actions</th>
+         <th>Project Name</th><th>Company</th><th>Contact</th>
+         <th>Description</th><th>Designator</th><th>Status</th><th>Tracking No.</th><th>Date</th><th>Actions</th>
        </tr></thead>
        <tbody id="ordersTableBody">
-         <tr><td colspan="8" class="empty-state"><span class="spinner"></span> Loading orders…</td></tr>
+         <tr><td colspan="9" class="empty-state"><span class="spinner"></span> Loading orders…</td></tr>
        </tbody>
      </table>
    </div>
@@ -950,6 +950,7 @@
       <div class="field"><label>Contact Person</label><input type="text" id="orderContactInput" placeholder="e.g. John Tan" /></div>
     </div>
     <div class="field" style="margin-bottom:12px"><label>Order Description *</label><input type="text" id="orderDescInput" placeholder="e.g. 500x NW-BOM001 PCBA, Rev3" /></div>
+    <div class="field" style="margin-bottom:12px"><label>Designator</label><input type="text" id="orderDesignatorInput" placeholder="e.g. NW-BOM001, SG736823600A" style="font-family:var(--mono)" /></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div class="field"><label>Quantity / Amount</label><input type="text" id="orderQtyInput" placeholder="e.g. 500 pcs" style="font-family:var(--mono)" /></div>
       <div class="field"><label>Order Date</label><input type="date" id="orderDateInput" style="font-family:var(--mono);font-size:12px" /></div>
@@ -2710,7 +2711,7 @@ document.head.appendChild(mpQtyStyle);
 const ORDERS_SHEET = "Projects";
 let _ordersCache = null;
 let _projFilter  = "all";
-const ORDER_COLS = { date:0,orderId:1,company:2,contact:3,description:4,qty:5,status:6,dueDate:7,value:8,notes:9,tracking:10 };
+const ORDER_COLS = { date:0,projectName:1,company:2,contact:3,description:4,qty:5,status:6,dueDate:7,value:8,notes:9,tracking:10,designator:11 };
 
 function setProjFilter(f,btn){_projFilter=f;document.querySelectorAll(".proj-filter-btn").forEach(b=>b.classList.remove("active"));if(btn)btn.classList.add("active");renderOrders();}
 
@@ -2732,7 +2733,7 @@ async function renderOrders(){
       if(!r[C.orderId]&&!r[C.company])return false;
       const status=(r[C.status]||"new").toLowerCase();
       const matchFilter=_projFilter==="all"||status===_projFilter;
-      const matchSearch=!search||[r[C.orderId],r[C.company],r[C.contact],r[C.description],r[C.notes],r[C.tracking]].some(v=>(v||"").toLowerCase().includes(search));
+      const matchSearch=!search||[r[C.projectName],r[C.company],r[C.contact],r[C.description],r[C.designator],r[C.notes],r[C.tracking]].some(v=>(v||"").toLowerCase().includes(search));
       return matchFilter&&matchSearch;
     });
     data.sort((a,b)=>(b.r[C.date]||"").localeCompare(a.r[C.date]||""));
@@ -2767,11 +2768,11 @@ function openOrderDrawer(rowIdx){
     const nextNum=existing.length?Math.max(...existing)+1:1;
     document.getElementById("orderIdInput").value="ORD-"+String(nextNum).padStart(3,"0");
     document.getElementById("orderStatusInput").value="new";
-    ["orderCompanyInput","orderContactInput","orderDescInput","orderQtyInput","orderDueDateInput","orderValueInput","orderNotesInput","orderTrackingInput"].forEach(id=>document.getElementById(id).value="");
+    ["orderCompanyInput","orderContactInput","orderDescInput","orderDesignatorInput","orderQtyInput","orderDueDateInput","orderValueInput","orderNotesInput","orderTrackingInput"].forEach(id=>document.getElementById(id).value="");
     document.getElementById("orderDateInput").value=todayStr();
   }else{
     const rows=_ordersCache||[];const r=rows[rowIdx-1];if(!r)return;const C=ORDER_COLS;
-    document.getElementById("orderIdInput").value=r[C.orderId]||"";
+    document.getElementById("orderIdInput").value=r[C.projectName]||"";
     document.getElementById("orderStatusInput").value=(r[C.status]||"new").toLowerCase();
     document.getElementById("orderCompanyInput").value=r[C.company]||"";
     document.getElementById("orderContactInput").value=r[C.contact]||"";
@@ -2805,7 +2806,7 @@ async function saveOrder(){
       `${APPS_SCRIPT_URL}?action=updateRow&sheet=${encodeURIComponent(ORDERS_SHEET)}&rowIndex=${rowIdx}&row=${encodeURIComponent(JSON.stringify(row))}`;
     const res=await(await fetch(url)).text();
     if(res.trim()!=="ok"&&isNew)throw new Error(res);
-    toast(`Order ${isNew?"saved":"updated"}: ${row[1]||company}`);
+    toast(`${isNew?"Saved":"Updated"}: ${row[1]||company}`);
     _ordersCache=null;statusEl.innerHTML="Saved.";statusEl.className="status-bar ok";
     setTimeout(closeOrderDrawer,700);renderOrders();
   }catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}
