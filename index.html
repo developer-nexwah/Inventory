@@ -2733,7 +2733,7 @@ async function renderOrders(){
       if(!r[C.orderId]&&!r[C.company])return false;
       const status=(r[C.status]||"new").toLowerCase();
       const matchFilter=_projFilter==="all"||status===_projFilter;
-      const matchSearch=!search||[r[C.projectName],r[C.company],r[C.contact],r[C.description],r[C.designator],r[C.notes],r[C.tracking]].some(v=>(v||"").toLowerCase().includes(search));
+      const matchSearch=!search||[r[C.projectName],r[C.company],r[C.contact],r[C.description],r[C.designator],r[C.notes],r[C.tracking]].some(v=>String(v||"").toLowerCase().includes(search));
       return matchFilter&&matchSearch;
     });
     data.sort((a,b)=>(b.r[C.date]||"").localeCompare(a.r[C.date]||""));
