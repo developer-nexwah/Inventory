@@ -558,7 +558,7 @@
        </div>
      </div>
      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-       <input type="text" id="projSearch" placeholder="Search company, order ID, description…" oninput="renderOrders()"
+       <input type="text" id="projSearch" placeholder="Search project name, company, description…" oninput="renderOrders()"
          style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--border2);border-radius:8px;font-size:13px;font-family:var(--sans);outline:none" />
      </div>
      <div class="proj-filter-row" style="margin-top:10px;margin-bottom:0">
@@ -2743,10 +2743,11 @@ async function renderOrders(){
       const status=(r[C.status]||"new").toLowerCase();
       const tracking=escHtml(r[C.tracking]||"");
       return `<tr class="inv-row-clickable" onclick="openOrderDrawer(${origIdx})">
-        <td class="mono" style="font-weight:600">${escHtml(r[C.orderId]||"—")}</td>
+        <td style="font-weight:600">${escHtml(r[C.projectName]||"—")}</td>
         <td style="font-weight:500">${escHtml(r[C.company]||"—")}</td>
         <td style="color:var(--muted);font-size:12px">${escHtml(r[C.contact]||"")}</td>
-        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(r[C.description]||"—")}</td>
+        <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(r[C.description]||"—")}</td>
+        <td style="font-size:12px;color:var(--muted)">${escHtml(r[C.designator]||"—")}</td>
         <td><span class="order-status ${status}">${statusLabels[status]||status}</span></td>
         <td class="mono" style="font-size:12px">${tracking?`<span onclick="openTrackModal('${tracking}');event.stopPropagation()" style="color:var(--accent);cursor:pointer;text-decoration:underline dotted">${tracking}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
         <td style="color:var(--muted);font-size:12px">${r[C.date]?formatDate(r[C.date]):"—"}</td>
