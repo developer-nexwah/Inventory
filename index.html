@@ -2801,8 +2801,9 @@ async function saveOrder(){
   statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Saving…';statusEl.className="status-bar loading";
   const row=[document.getElementById("orderDateInput").value||todayStr(),document.getElementById("orderIdInput").value.trim(),company,document.getElementById("orderContactInput").value.trim(),desc,document.getElementById("orderQtyInput").value.trim(),document.getElementById("orderStatusInput").value,document.getElementById("orderDueDateInput").value,document.getElementById("orderValueInput").value.trim(),document.getElementById("orderNotesInput").value.trim(),document.getElementById("orderTrackingInput").value.trim()];
   try{
-    const url=isNew?`${APPS_SCRIPT_URL}?action=append&sheet=${encodeURIComponent(ORDERS_SHEET)}&row=${encodeURIComponent(JSON.stringify(row))}`:
-      `${APPS_SCRIPT_URL}?action=updateRow&sheet=${encodeURIComponent(ORDERS_SHEET)}&rowIndex=${rowIdx}&row=${encodeURIComponent(JSON.stringify(row))}`;
+    const url=isNew
+      ?`${APPS_SCRIPT_URL}?action=append&sheet=${encodeURIComponent(ORDERS_SHEET)}&row=${encodeURIComponent(JSON.stringify(row))}`
+      :`${APPS_SCRIPT_URL}?action=updateRow&sheet=${encodeURIComponent(ORDERS_SHEET)}&rowIndex=${rowIdx}&row=${encodeURIComponent(JSON.stringify(row))}`;
     const res=await(await fetch(url)).text();
     if(res.trim()!=="ok"&&isNew)throw new Error(res);
     toast(`${isNew?"Saved":"Updated"}: ${row[1]||company}`);
