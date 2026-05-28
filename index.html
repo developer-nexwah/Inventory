@@ -936,7 +936,7 @@
   <div class="inv-drawer-body">
     <input type="hidden" id="orderDrawerRowIdx" value="" />
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div class="field"><label>Order ID</label><input type="text" id="orderIdInput" placeholder="e.g. ORD-001" style="font-family:var(--mono);font-weight:600" /></div>
+      <div class="field"><label>Project Name</label><input type="text" id="orderIdInput" placeholder="e.g. NW-BOM001, Water Level Rev3" style="font-weight:600" /></div>
       <div class="field"><label>Status</label>
         <select id="orderStatusInput" style="font-family:var(--sans);font-size:13px">
           <option value="new">New</option><option value="pending">Pending</option>
@@ -2764,9 +2764,7 @@ function openOrderDrawer(rowIdx){
   document.getElementById("orderDeleteBtn").style.display=isNew?"none":"";
   document.getElementById("orderDrawerStatus").style.display="none";
   if(isNew){
-    const existing=(_ordersCache||[]).slice(1).map(r=>r[ORDER_COLS.orderId]||"").filter(id=>/^ORD-\d+$/.test(id)).map(id=>parseInt(id.replace("ORD-",""))).filter(n=>!isNaN(n));
-    const nextNum=existing.length?Math.max(...existing)+1:1;
-    document.getElementById("orderIdInput").value="ORD-"+String(nextNum).padStart(3,"0");
+    document.getElementById("orderIdInput").value="";
     document.getElementById("orderStatusInput").value="new";
     ["orderCompanyInput","orderContactInput","orderDescInput","orderDesignatorInput","orderQtyInput","orderDueDateInput","orderValueInput","orderNotesInput","orderTrackingInput"].forEach(id=>document.getElementById(id).value="");
     document.getElementById("orderDateInput").value=todayStr();
