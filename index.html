@@ -1969,10 +1969,13 @@ function _renderInvRows(tbody) {
     boxLoc: getSheetLocation(r)
   }));
   data = data.filter(({r, rowSerial, boxLoc}) => {
-    const rawMatch = r.some(cell => (cell||"").toString().toUpperCase().includes(search));
-    const rowMatch = String(rowSerial||"").toUpperCase().includes(search);
-    const boxMatch = String(boxLoc||"").toUpperCase().includes(search);
-    return rawMatch || rowMatch || boxMatch;
+    // Exact match on Nexwah PN (full slot label like PB26-24)
+    const nexwahExact = String(rowSerial||"").toUpperCase() === search
+                     || String(boxLoc||"").toUpperCase() === search;
+    // Partial match only on MPN (col 2) and description (col 3)
+    const mpnMatch = String(r[2]||"").toUpperCase().includes(search);
+    const descMatch = String(r[3]||"").toUpperCase().includes(search);
+    return nexwahExact || mpnMatch || descMatch;
   });
   data.sort((a,b) => String(a.r[2]||"").localeCompare(String(b.r[2]||"")));
   if (!data.length) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No results found for "${search}".</td></tr>`; return; }
