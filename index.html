@@ -2948,7 +2948,7 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
   const descCol      = mapping.Description ? (bomRow[mapping.Description]||'') : '';
 
   // If dedicated columns exist use them, otherwise extract from description
-  const hasDedicatedCols = !!(footprintCol || valueCol || commentCol);
+const hasDedicatedCols = !!(footprintCol && valueCol);
   const extractSrc = hasDedicatedCols
     ? [footprintCol, valueCol, commentCol, descCol].join(' ')
     : descCol;
