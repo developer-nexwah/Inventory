@@ -2927,20 +2927,37 @@ function closeTrackModal(){document.getElementById("trackModalOverlay").style.di
 
 // ── BOM RECOMMENDATIONS ────────────────────────────────────
 function extractValueFromText(text) {
-  const s = String(text||'').toUpperCase().replace(/-/g, ' ');
-  // Match: number + unit e.g. 100NF, 10K, 4.7UF, 220PF, 100UH, 22R
-  const m = s.match(/(?:^|[\s])(\d+\.?\d*\s*(?:PF|NF|UF|MF|OHM|MHZ|KHZ|UH|NH|MH))(?:$|[\s])/);
-  if (m) return m[1].replace(/\s+/g,'');
-  const m2 = s.match(/(?:^|[\s])(\d+\.?\d*\s*[KMRG])(?:$|[\s])/);
-  if (m2) return m2[1].replace(/\s+/g,'');
+  const s = String(text||'').toUpperCase();
+  const m = s.match(/\b(\d+\.?\d*\s*(?:PF|NF|UF|MF|OHM|MHZ|KHZ|UH|NH|MH))\b|\b(\d+\.?\d*\s*[KMRG])\b/);
+  if (m) return (m[1]||m[2]).replace(/\s+/g,'');
   return '';
 }
 
-function extractValueFromText(text) {
-  const s = String(text||'').toUpperCase();
-  // Match: number + unit (e.g. 220PF, 10K, 100NF, 4.7UF, 1M, 47R, 100UH)
-  const m = s.match(/\b(\d+\.?\d*\s*(?:PF|NF|UF|MF|OHM|MHZ|KHZ|UH|NH|MH))\b|\b(\d+\.?\d*\s*[KMRG])\b/);
-  if (m) return (m[1]||m[2]).replace(/\s+/g,'');
+function extractFootprintFromText(text) {
+  const s = String(text||'').toUpperCase().replace(/-/g,'');
+  const fps = [
+    'C0201','C0402','C0603','C0805','C1206','C1210','C1812',
+    'R0201','R0402','R0603','R0805','R1206','R1210','R1812',
+    '0201','0402','0603','0805','1206','1210','1812','2220','2512',
+    'SOT23','SOT323','SOT363','SOT523','SOT223','SOT89',
+    'SOD123','SOD323','SOD523','SOD923',
+    'SC70','SC88','SC89',
+    'SMA','SMB','SMC','DO214AA','DO214AC','DO214AB',
+    'SOIC8','SOIC14','SOIC16','SOIC20','SOIC28',
+    'TSSOP8','TSSOP14','TSSOP16','TSSOP20','TSSOP28',
+    'MSOP8','MSOP10','MSOP16',
+    'QFN16','QFN20','QFN24','QFN28','QFN32','QFN48','QFN64',
+    'QFP32','QFP44','QFP48','QFP64','QFP100','QFP128',
+    'DFN6','DFN8','DFN10',
+    'TO92','TO220','TO252','TO263','DPAK',
+    'DIP8','DIP14','DIP16','DIP28','DIP40',
+    'DO35','DO41',
+  ];
+  for (const fp of fps) {
+    if (s.includes(fp.replace(/-/g,''))) return fp;
+  }
+  const m = s.match(/\b(0201|0402|0603|0805|1206|1210|1812|2220|2512)\b/);
+  if (m) return m[1];
   return '';
 }
 
