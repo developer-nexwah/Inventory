@@ -573,10 +573,10 @@
    <div id="projLoadStatus" class="status-bar" style="display:none;margin-bottom:12px"></div>
    <div class="table-wrap" id="ordersTableWrap">
      <table>
-       <thead><tr>
-         <th>Project Name</th><th>Company</th><th>Contact</th>
-         <th>Description</th><th>Designator</th><th>Status</th><th>Tracking No.</th><th>Date</th><th>Actions</th>
-       </tr></thead>
+   <thead><tr>
+  <th>Date</th><th>Project Name</th><th>Description</th>
+  <th>Designator</th><th>Quantity</th><th>Company</th><th>Tracking No.</th><th>Status</th><th>Actions</th>
+</tr></thead>
        <tbody id="ordersTableBody">
          <tr><td colspan="9" class="empty-state"><span class="spinner"></span> Loading orders…</td></tr>
        </tbody>
@@ -2797,17 +2797,17 @@ async function renderOrders(){
     tbody.innerHTML=data.map(({r,origIdx})=>{
       const status=(r[C.status]||"new").toLowerCase();
       const tracking=escHtml(r[C.tracking]||"");
-      return `<tr class="inv-row-clickable" onclick="openOrderDrawer(${origIdx})">
-        <td style="font-weight:600">${escHtml(r[C.projectName]||"—")}</td>
-        <td style="font-weight:500">${escHtml(r[C.company]||"—")}</td>
-        <td style="color:var(--muted);font-size:12px">${escHtml(r[C.contact]||"")}</td>
-        <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(r[C.description]||"—")}</td>
-        <td style="font-size:12px;color:var(--muted)">${escHtml(r[C.designator]||"—")}</td>
-        <td><span class="order-status ${status}">${statusLabels[status]||status}</span></td>
-        <td class="mono" style="font-size:12px">${tracking?`<span onclick="openTrackModal('${tracking}');event.stopPropagation()" style="color:var(--accent);cursor:pointer;text-decoration:underline dotted">${tracking}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
-        <td style="color:var(--muted);font-size:12px">${r[C.date]?formatDate(r[C.date]):"—"}</td>
-        <td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm" onclick="openOrderDrawer(${origIdx})">Edit</button></td>
-      </tr>`;
+    return `<tr class="inv-row-clickable" onclick="openOrderDrawer(${origIdx})">
+  <td style="color:var(--muted);font-size:12px">${r[C.date]?formatDate(r[C.date]):"—"}</td>
+  <td style="font-weight:600">${escHtml(r[C.projectName]||"—")}</td>
+  <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(r[C.description]||"—")}</td>
+  <td style="font-size:12px;color:var(--muted)">${escHtml(r[C.designator]||"—")}</td>
+  <td style="font-family:var(--mono);font-size:12px">${escHtml(r[C.qty]||"—")}</td>
+  <td style="font-weight:500">${escHtml(r[C.company]||"—")}</td>
+  <td class="mono" style="font-size:12px">${tracking?`<span onclick="openTrackModal('${tracking}');event.stopPropagation()" style="color:var(--accent);cursor:pointer;text-decoration:underline dotted">${tracking}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
+  <td><span class="order-status ${status}">${statusLabels[status]||status}</span></td>
+  <td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm" onclick="openOrderDrawer(${origIdx})">Edit</button></td>
+</tr>`;
     }).join("");
   }catch(e){tbody.innerHTML=`<tr><td colspan="8" class="empty-state" style="color:var(--error)">Could not load orders: ${e.message}</td></tr>`;}
 }
