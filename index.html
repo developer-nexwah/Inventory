@@ -2030,7 +2030,59 @@ function renderDrawerInfo(mfrPn, desc, qty, location, rowSerial) {
  return [
    ["Mfr PN", mfrPn || "—"], ["Description", desc || "—"],
    ["Nexwah PN", nexwahPn], ["Quantity", `${qty || 0} units`]
- ].map(([label,val])=>`<div class="info-row"><div class="info-label">${label}</div><div class="info-value">${val}</div></div>`).join("");
+ ].map(([label,val])=>`<div class="info-row"><div class="info-label">${label}</div><div class="info-value">${val}</div></div>`).join("")
+ + `<div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="enableDrawerEdit()">✏ Edit Details</button></div>`;
+}
+
+function enableDrawerEdit() {
+ if (!drawerRowData) return;
+ const {mfrPn, desc, qty} = drawerRowData;
+ document.getElementById("drawerInfoRows").innerHTML = `
+   <div class="info-row"><div class="info-label">Mfr PN</div><div class="info-value"><input id="editMfrPn" value="${escQ(mfrPn||'')}" style="width:100%;font-family:var(--mono);font-size:12px;padding:4px 8px;border:1px solid var(--border2);border-radius:6px;outline:none" /></div></div>
+   <div class="info-row"><div class="info-label">Description</div><div class="info-value"><input id="editDesc" value="${escQ(desc||'')}" style="width:100%;font-size:12px;padding:4px 8px;border:1px solid var(--border2);border-radius:6px;outline:none" /></div></div>
+   <div class="info-row"><div class="info-label">Quantity</div><div class="info-value"><input id="editQty" type="number" min="0" value="${qty||0}" style="width:80px;font-family:var(--mono);font-size:12px;padding:4px 8px;border:1px solid var(--border2);border-radius:6px;outline:none" /></div></div>
+   <div style="margin-top:10px;display:flex;gap:8px">
+     <button class="btn btn-primary btn-sm" onclick="saveDrawerEdit()">Save</button>
+     <button class="btn btn-secondary btn-sm" onclick="cancelDrawerEdit()">Cancel</button>
+   </div>
+   <div id="editInfoStatus" class="status-bar" style="display:none;margin-top:8px"></div>`;
+ setTimeout(() => document.getElementById("editMfrPn")?.focus(), 50);
+}
+
+function cancelDrawerEdit() {
+ if (!drawerRowData) return;
+ const {mfrPn, desc, qty, location, rowSerial} = drawerRowData;
+ document.getElementById("drawerInfoRows").innerHTML = renderDrawerInfo(mfrPn, desc, qty, location || getBaseLocationId(rowSerial), rowSerial);
+}
+
+async function saveDrawerEdit() {
+ if (!drawerRowData) return;
+ const newMfrPn = document.getElementById("editMfrPn")?.value.trim();
+ const newDesc  = document.getElementById("editDesc")?.value.trim();
+ const newQty   = parseInt(document.getElementById("editQty")?.value) || 0;
+ const statusEl = document.getElementById("editInfoStatus");
+ if (!newMfrPn) { statusEl.style.display="block"; statusEl.innerHTML="Mfr PN is required."; statusEl.className="status-bar err"; return; }
+ statusEl.style.display="block"; statusEl.innerHTML='<span class="spinner"></span>Saving…'; statusEl.className="status-bar loading";
+ try {
+   const today = todayStr();
+   await sheetUpdate(drawerRowData.rowIdx, newQty, today);
+   // Update MfrPN and Description via a dedicated action
+   const url = `${APPS_SCRIPT_URL}?action=updateFields&sheet=${encodeURIComponent(cfg.sheetName||"Sheet1")}&rowIndex=${drawerRowData.rowIdx}&mfrPn=${encodeURIComponent(newMfrPn)}&desc=${encodeURIComponent(newDesc)}`;
+   await fetch(url);
+   // Update local cache
+   drawerRowData.mfrPn = newMfrPn;
+   drawerRowData.desc  = newDesc;
+   drawerRowData.qty   = newQty;
+   document.getElementById("drawerMfrPn").textContent = newMfrPn;
+   document.getElementById("drawerDesc").textContent  = newDesc || "No description";
+   const pill = document.getElementById("drawerStockPill");
+   if (newQty<=0){pill.className="stock-pill empty";pill.textContent=`0 units — out of stock`;}
+   else if (newQty<=5){pill.className="stock-pill low";pill.textContent=`${newQty} units — low stock`;}
+   else{pill.className="stock-pill ok";pill.textContent=`${newQty} units in stock`;}
+   document.getElementById("drawerInfoRows").innerHTML = renderDrawerInfo(newMfrPn, newDesc, newQty, drawerRowData.location, drawerRowData.rowSerial);
+   _invCache = null; renderInventory();
+   toast(`Updated: ${newMfrPn}`);
+ } catch(e) { statusEl.innerHTML="Error: "+e.message; statusEl.className="status-bar err"; }
 }
 function openDrawer(rowIdx,mfrPn,suppPn,supplier,desc,location,rowSerial,qty,lastUpdated) {
  drawerRowData={rowIdx,mfrPn,suppPn,supplier,desc,location,rowSerial,qty,lastUpdated};
