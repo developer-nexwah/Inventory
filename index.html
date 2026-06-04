@@ -2786,10 +2786,10 @@ async function renderOrders(){
     const search=(document.getElementById("projSearch")?.value||"").trim().toLowerCase();
     const C=ORDER_COLS;
     let data=rows.slice(1).map((r,i)=>({r,origIdx:i+2})).filter(({r})=>{
-      if(!r[C.orderId]&&!r[C.company])return false;
-      const status=(r[C.status]||"new").toLowerCase();
-      const matchFilter=_projFilter==="all"||status===_projFilter;
-      const matchSearch=!search||[r[C.projectName],r[C.company],r[C.contact],r[C.description],r[C.designator],r[C.notes],r[C.tracking]].some(v=>String(v||"").toLowerCase().includes(search));
+     if(!r[C.projectName]&&!r[C.location])return false;
+const status=(r[C.row]||"new").toLowerCase();
+const matchFilter=_projFilter==="all"||status===_projFilter;
+const matchSearch=!search||[r[C.projectName],r[C.location],r[C.source],r[C.description],r[C.partNumber],r[C.memo]].some(v=>String(v||"").toLowerCase().includes(search));
       return matchFilter&&matchSearch;
     });
     data.sort((a,b)=>(b.r[C.date]||"").localeCompare(a.r[C.date]||""));
