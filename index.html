@@ -2926,14 +2926,13 @@ function openTrackModal(trackingNum){
 function closeTrackModal(){document.getElementById("trackModalOverlay").style.display="none";}
 
 // ── BOM RECOMMENDATIONS ────────────────────────────────────
-function extractFootprintFromText(text) {
-  const s = String(text||'').toUpperCase();
-  // Match footprint codes with any separator or prefix like C0603, R0805, CAP-0603, 0603 etc.
-  const m = s.match(/(?:^|[^0-9])(01005|0201|0402|0603|0805|1206|1210|1812|2010|2512)(?:$|[^0-9])/);
-  if (m) return m[1].toUpperCase();
-  // IC/transistor packages
-  const m2 = s.match(/\b(SOT-?23[A-Z0-9]*|SOT-?323|SOD-?123|SOD-?323|SC-?70|SC-?88|SMA|SMB|SMC|DO-?214[A-Z]?|TO-?220|TO-?252|TO-?263)\b/);
-  if (m2) return m2[1].replace(/-/g,'').toUpperCase();
+function extractValueFromText(text) {
+  const s = String(text||'').toUpperCase().replace(/-/g, ' ');
+  // Match: number + unit e.g. 100NF, 10K, 4.7UF, 220PF, 100UH, 22R
+  const m = s.match(/(?:^|[\s])(\d+\.?\d*\s*(?:PF|NF|UF|MF|OHM|MHZ|KHZ|UH|NH|MH))(?:$|[\s])/);
+  if (m) return m[1].replace(/\s+/g,'');
+  const m2 = s.match(/(?:^|[\s])(\d+\.?\d*\s*[KMRG])(?:$|[\s])/);
+  if (m2) return m2[1].replace(/\s+/g,'');
   return '';
 }
 
