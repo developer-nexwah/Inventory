@@ -2932,9 +2932,10 @@ function closeTrackModal(){document.getElementById("trackModalOverlay").style.di
 // ── BOM RECOMMENDATIONS ────────────────────────────────────
 function extractValueFromText(text) {
   const s = String(text||'').toUpperCase()
-    .replace(/(\d)\.(\d)/g, '$1_$2')  // protect decimal points
+    .replace(/Ω/g, 'OHM')
+    .replace(/(\d)\.(\d)/g, '$1_$2')
     .replace(/[^A-Z0-9_.]/g, ' ')
-    .replace(/_/g, '.')               // restore decimal points
+    .replace(/_/g, '.')
     .replace(/\s+/g, ' ');
   const cap = s.match(/(?:^|\s)(\d+\.?\d*)\s*(PF|NF|UF|MF|UH|NH|MH)(?:\s|$)/);
   if (cap) return cap[1] + cap[2];
@@ -3009,15 +3010,12 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
   const targetFP  = extractFootprintFromText(extractSrc);
   const targetVal = extractValueFromText(extractSrc);
 
-  console.log('BOM ROW:', JSON.stringify(bomRow));
-  console.log('extractSrc:', extractSrc);
-  console.log('targetFP:', targetFP, '| targetVal:', targetVal, '| normalized:', normalizeCapValue(targetVal));
-
   if (!targetFP && !targetVal) return [];
 
   const ownMpn = (mapping.MfrPN ? String(bomRow[mapping.MfrPN]||'') : '').trim().toUpperCase();
-  const scored = [];
+  const normFP = s => s.replace(/-/g,'').replace(/^[CR]/,'');
 
+  const scored = [];
   sheetRows.slice(1).forEach((r, i) => {
     if (ownMpn && String(r[2]||'').trim().toUpperCase() === ownMpn) return;
     const invSrc = [r[2]||'', r[3]||''].join(' ');
@@ -3025,13 +3023,10 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
     const val = extractValueFromText(invSrc);
     const loc = getEffectiveLocation(r, i+2);
     if (!loc) return;
-    const fpMatch  = targetFP && fp && fp.replace(/-/g,'') === targetFP.replace(/-/g,'');
+    const fpMatch  = targetFP && fp && normFP(fp) === normFP(targetFP);
     const valMatch = targetVal && val && normalizeCapValue(val) === normalizeCapValue(targetVal);
-    if (fpMatch && !valMatch) {
-      console.log('FP match but NO val match | loc:', loc, '| invSrc:', invSrc, '| fp:', fp, '| val:', val, '| normVal:', normalizeCapValue(val), '| normTarget:', normalizeCapValue(targetVal));
-    }
     let score = 0;
-    if (fpMatch) score += 2;
+    if (fpMatch)  score += 2;
     if (valMatch) score += 1;
     if (score < 3) return;
     scored.push({ loc, score });
@@ -3041,6 +3036,7 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
   const seen = new Set(), results = [];
   for (const item of scored) {
     if (!seen.has(item.loc)) { seen.add(item.loc); results.push(item.loc); }
+    if (results.length >= 12) break;
   }
   return results;
 }
