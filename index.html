@@ -2978,7 +2978,7 @@ function extractFootprintFromText(text) {
 }
 
 function normalizeCapValue(v) {
-  const s = String(v||'').toUpperCase().replace(/\s+/g,'').replace(/Ω|OHM/g,'R');
+  const s = String(v||'').toUpperCase().replace(/\s+/g,'');
   const capM = s.match(/(\d+\.?\d*)(PF|NF|UF|MF)/);
   if (capM) {
     const n = parseFloat(capM[1]), unit = capM[2];
@@ -2987,17 +2987,15 @@ function normalizeCapValue(v) {
     else if (unit==='NF') pf = n * 1000;
     else if (unit==='UF') pf = n * 1000000;
     else if (unit==='MF') pf = n * 1000000000;
-    return String(Math.round(pf));
+    return 'CAP:' + Math.round(pf);
   }
-  const resM = s.match(/(\d+\.?\d*)(K|M|R)/);
+  const resM = s.match(/(\d+\.?\d*)(K|M|R|OHM)/);
   if (resM) {
     const n = parseFloat(resM[1]), unit = resM[2];
-    if (unit==='K') return String(Math.round(n*1000));
-    if (unit==='M') return String(Math.round(n*1000000));
-    return String(Math.round(n));
+    if (unit==='K') return 'RES:' + Math.round(n*1000);
+    if (unit==='M') return 'RES:' + Math.round(n*1000000);
+    return 'RES:' + Math.round(n);
   }
-  const plain = s.match(/^(\d+\.?\d*)$/);
-  if (plain) return String(Math.round(parseFloat(plain[1])));
   return s;
 }
 function getBomRecommendations(bomRow, mapping, sheetRows) {
