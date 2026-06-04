@@ -2996,14 +2996,18 @@ const hasDedicatedCols = !!(footprintCol && valueCol);
     if (valMatch) score += 1;
     // Require both to match when we have dedicated columns, otherwise footprint alone is enough
     if (hasDedicatedCols && score < 3) return;
-    if (!hasDedicatedCols && score < 2) return;
+    if (!hasDedicatedCols && score < 1) return;
     scored.push({ loc, score });
   });
 
-  scored.sort((a,b) => b.score - a.score);
+scored.sort((a,b) => b.score - a.score);
   const seen = new Set(), results = [];
   for (const item of scored) {
-   if (!seen.has(item.loc)) { seen.add(item.loc); results.push(item.loc); }
+    if (!seen.has(item.loc)) {
+      seen.add(item.loc);
+      results.push(item.loc);
+    }
+    if (results.length >= 8) break;
   }
   return results;
 }
