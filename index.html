@@ -573,12 +573,12 @@
    <div id="projLoadStatus" class="status-bar" style="display:none;margin-bottom:12px"></div>
    <div class="table-wrap" id="ordersTableWrap">
      <table>
-   <thead><tr>
+<thead><tr>
   <th>Date</th><th>Project Name</th><th>Description</th>
-  <th>Designator</th><th>Quantity</th><th>Company</th><th>Tracking No.</th><th>Status</th><th>Actions</th>
+  <th>Designator</th><th>Part Number</th><th>Quantity</th><th>Company</th><th>Tracking No.</th><th>Status</th><th>Actions</th>
 </tr></thead>
        <tbody id="ordersTableBody">
-         <tr><td colspan="9" class="empty-state"><span class="spinner"></span> Loading orders…</td></tr>
+         <tr><td colspan="10" class="empty-state"><span class="spinner"></span> Loading orders…</td></tr>
        </tbody>
      </table>
    </div>
@@ -951,6 +951,7 @@
     </div>
     <div class="field" style="margin-bottom:12px"><label>Order Description *</label><input type="text" id="orderDescInput" placeholder="e.g. 500x NW-BOM001 PCBA, Rev3" /></div>
     <div class="field" style="margin-bottom:12px"><label>Designator</label><input type="text" id="orderDesignatorInput" placeholder="e.g. NW-BOM001, SG736823600A" style="font-family:var(--mono)" /></div>
+   <div class="field" style="margin-bottom:12px"><label>Part Number</label><input type="text" id="orderPartNumberInput" placeholder="e.g. GRM188R71H104KA93D" style="font-family:var(--mono)" /></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div class="field"><label>Quantity / Amount</label><input type="text" id="orderQtyInput" placeholder="e.g. 500 pcs" style="font-family:var(--mono)" /></div>
       <div class="field"><label>Order Date</label><input type="date" id="orderDateInput" style="font-family:var(--mono);font-size:12px" /></div>
@@ -2766,7 +2767,7 @@ document.head.appendChild(mpQtyStyle);
 const ORDERS_SHEET = "Projects";
 let _ordersCache = null;
 let _projFilter  = "all";
-const ORDER_COLS = { date:0,projectName:1,company:2,contact:3,description:4,qty:5,status:6,dueDate:7,value:8,notes:9,tracking:10,designator:11 };
+const ORDER_COLS = { date:0, projectName:1, partNumber:2, description:3, qty:4, location:5, row:6, nexwahPn:7, source:8, cost:9, stockLevel:10, image:11, memo:12 };
 
 function setProjFilter(f,btn){_projFilter=f;document.querySelectorAll(".proj-filter-btn").forEach(b=>b.classList.remove("active"));if(btn)btn.classList.add("active");renderOrders();}
 
@@ -2797,11 +2798,12 @@ async function renderOrders(){
     tbody.innerHTML=data.map(({r,origIdx})=>{
       const status=(r[C.status]||"new").toLowerCase();
       const tracking=escHtml(r[C.tracking]||"");
-    return `<tr class="inv-row-clickable" onclick="openOrderDrawer(${origIdx})">
+  return `<tr class="inv-row-clickable" onclick="openOrderDrawer(${origIdx})">
   <td style="color:var(--muted);font-size:12px">${r[C.date]?formatDate(r[C.date]):"—"}</td>
   <td style="font-weight:600">${escHtml(r[C.projectName]||"—")}</td>
   <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(r[C.description]||"—")}</td>
   <td style="font-size:12px;color:var(--muted)">${escHtml(r[C.designator]||"—")}</td>
+  <td class="mono" style="font-size:12px">${escHtml(r[C.tracking]||"—")}</td>
   <td style="font-family:var(--mono);font-size:12px">${escHtml(r[C.qty]||"—")}</td>
   <td style="font-weight:500">${escHtml(r[C.company]||"—")}</td>
   <td class="mono" style="font-size:12px">${tracking?`<span onclick="openTrackModal('${tracking}');event.stopPropagation()" style="color:var(--accent);cursor:pointer;text-decoration:underline dotted">${tracking}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
@@ -2822,8 +2824,7 @@ function openOrderDrawer(rowIdx){
   if(isNew){
     document.getElementById("orderIdInput").value="";
     document.getElementById("orderStatusInput").value="new";
-    ["orderCompanyInput","orderContactInput","orderDescInput","orderDesignatorInput","orderQtyInput","orderDueDateInput","orderValueInput","orderNotesInput","orderTrackingInput"].forEach(id=>document.getElementById(id).value="");
-    document.getElementById("orderDateInput").value=todayStr();
+ ["orderCompanyInput","orderContactInput","orderDescInput","orderDesignatorInput","orderPartNumberInput","orderQtyInput","orderDueDateInput","orderValueInput","orderNotesInput","orderTrackingInput"].forEach(id=>document.getElementById(id).value="");
   }else{
     const rows=_ordersCache||[];const r=rows[rowIdx-1];if(!r)return;const C=ORDER_COLS;
     document.getElementById("orderIdInput").value=r[C.projectName]||"";
@@ -2837,6 +2838,7 @@ function openOrderDrawer(rowIdx){
     document.getElementById("orderValueInput").value=r[C.value]||"";
     document.getElementById("orderNotesInput").value=r[C.notes]||"";
     document.getElementById("orderTrackingInput").value=r[C.tracking]||"";
+   document.getElementById("orderPartNumberInput").value=r[C.partNumber]||"";
   }
   document.getElementById("orderDrawerOverlay").classList.add("open");
   document.getElementById("orderDrawer").classList.add("open");
@@ -2854,7 +2856,7 @@ async function saveOrder(){
   if(!company){statusEl.style.display="block";statusEl.innerHTML="Company name is required.";statusEl.className="status-bar err";return;}
   if(!desc){statusEl.style.display="block";statusEl.innerHTML="Description is required.";statusEl.className="status-bar err";return;}
   statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Saving…';statusEl.className="status-bar loading";
-  const row=[document.getElementById("orderDateInput").value||todayStr(),document.getElementById("orderIdInput").value.trim(),company,document.getElementById("orderContactInput").value.trim(),desc,document.getElementById("orderQtyInput").value.trim(),document.getElementById("orderStatusInput").value,document.getElementById("orderDueDateInput").value,document.getElementById("orderValueInput").value.trim(),document.getElementById("orderNotesInput").value.trim(),document.getElementById("orderTrackingInput").value.trim()];
+ const row=[document.getElementById("orderDateInput").value||todayStr(),document.getElementById("orderIdInput").value.trim(),company,document.getElementById("orderContactInput").value.trim(),desc,document.getElementById("orderQtyInput").value.trim(),document.getElementById("orderStatusInput").value,document.getElementById("orderDueDateInput").value,document.getElementById("orderValueInput").value.trim(),document.getElementById("orderNotesInput").value.trim(),document.getElementById("orderTrackingInput").value.trim(),document.getElementById("orderDesignatorInput").value.trim(),document.getElementById("orderPartNumberInput").value.trim()];
   try{
     const url=isNew
       ?`${APPS_SCRIPT_URL}?action=append&sheet=${encodeURIComponent(ORDERS_SHEET)}&row=${encodeURIComponent(JSON.stringify(row))}`
