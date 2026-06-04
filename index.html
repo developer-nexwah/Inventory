@@ -2977,10 +2977,29 @@ function extractFootprintFromText(text) {
   return '';
 }
 function normalizeCapValue(v) {
-  // Convert all equivalent capacitor values to pF for comparison
-  // 100nF = 0.1uF = 100000pF
-  const s = String(v||'').toUpperCase().replace(/\s+/g,'');
-  const m = s.match(/^(\d+\.?\d*)(PF|NF|UF|MF)$/);
+function normalizeCapValue(v) {
+  const s = String(v||'').toUpperCase().replace(/\s+/g,'').replace(/Ω|OHM/g,'R');
+  // Extract just the number+unit from anywhere in the string
+  const capM = s.match(/(\d+\.?\d*)(PF|NF|UF|MF)/);
+  if (capM) {
+    const n = parseFloat(capM[1]), unit = capM[2];
+    let pf;
+    if (unit==='PF') pf = n;
+    else if (unit==='NF') pf = n * 1000;
+    else if (unit==='UF') pf = n * 1000000;
+    else if (unit==='MF') pf = n * 1000000000;
+    return String(Math.round(pf));
+  }
+  const resM = s.match(/(\d+\.?\d*)(K|M|R)/);
+  if (resM) {
+    const n = parseFloat(resM[1]), unit = resM[2];
+    if (unit==='K') return String(Math.round(n*1000));
+    if (unit==='M') return String(Math.round(n*1000000));
+    return String(Math.round(n));
+  }
+  const plain = s.match(/^(\d+\.?\d*)$/);
+  if (plain) return String(Math.round(parseFloat(plain[1])));
+  return s;
   if (!m) {
     // Resistor/other: normalize 10K=10000, 4.7K=4700, 22R=22
     const r = s.match(/^(\d+\.?\d*)(K|M|R|OHM)?$/);
@@ -3047,7 +3066,7 @@ scored.sort((a,b) => b.score - a.score);
       seen.add(item.loc);
       results.push(item.loc);
     }
-    if (results.length >= 8) break;
+    if (results.length >= 12) break;
   }
   return results;
 }
