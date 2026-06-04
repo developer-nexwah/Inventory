@@ -2998,8 +2998,6 @@ function normalizeCapValue(v) {
   return s;
 }
 function getBomRecommendations(bomRow, mapping, sheetRows) {
-  // Try dedicated columns first
-// Use mapped columns first, then fall back to raw column name detection
   const footprintCol = (mapping.Footprint ? bomRow[mapping.Footprint]||'' : '')
     || bomRow['Footprint'] || bomRow['footprint'] || bomRow['FOOTPRINT'] || '';
   const valueCol = (mapping.Value ? bomRow[mapping.Value]||'' : '')
@@ -3007,17 +3005,19 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
   const commentCol = bomRow['Comment'] || bomRow['comment'] || bomRow['COMMENT'] || '';
   const descCol = mapping.Description ? (bomRow[mapping.Description]||'') : '';
 
-  const hasDedicatedCols = !!(footprintCol || valueCol);
   const extractSrc = [footprintCol, valueCol, commentCol, descCol].filter(Boolean).join(' ');
-
   const targetFP  = extractFootprintFromText(extractSrc);
   const targetVal = extractValueFromText(extractSrc);
+
+  console.log('BOM ROW:', JSON.stringify(bomRow));
+  console.log('extractSrc:', extractSrc);
+  console.log('targetFP:', targetFP, '| targetVal:', targetVal, '| normalized:', normalizeCapValue(targetVal));
 
   if (!targetFP && !targetVal) return [];
 
   const ownMpn = (mapping.MfrPN ? String(bomRow[mapping.MfrPN]||'') : '').trim().toUpperCase();
+  const scored = [];
 
- const scored = [];
   sheetRows.slice(1).forEach((r, i) => {
     if (ownMpn && String(r[2]||'').trim().toUpperCase() === ownMpn) return;
     const invSrc = [r[2]||'', r[3]||''].join(' ');
@@ -3025,30 +3025,22 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
     const val = extractValueFromText(invSrc);
     const loc = getEffectiveLocation(r, i+2);
     if (!loc) return;
-    let score = 0;
-const fpMatch  = targetFP && fp && fp.replace(/-/g,'') === targetFP.replace(/-/g,'');
+    const fpMatch  = targetFP && fp && fp.replace(/-/g,'') === targetFP.replace(/-/g,'');
     const valMatch = targetVal && val && normalizeCapValue(val) === normalizeCapValue(targetVal);
-    
-    // Debug: also try partial value match as fallback
-    const valPartial = targetVal && val && (
-      normalizeCapValue(val) === normalizeCapValue(targetVal) ||
-      String(r[3]||'').toUpperCase().includes(targetVal.replace(/[^A-Z0-9]/g,''))
-    );
-    
+    if (fpMatch && !valMatch) {
+      console.log('FP match but NO val match | loc:', loc, '| invSrc:', invSrc, '| fp:', fp, '| val:', val, '| normVal:', normalizeCapValue(val), '| normTarget:', normalizeCapValue(targetVal));
+    }
+    let score = 0;
     if (fpMatch) score += 2;
-    if (valPartial) score += 1;
+    if (valMatch) score += 1;
     if (score < 3) return;
     scored.push({ loc, score });
   });
 
-scored.sort((a,b) => b.score - a.score);
+  scored.sort((a,b) => b.score - a.score);
   const seen = new Set(), results = [];
   for (const item of scored) {
-    if (!seen.has(item.loc)) {
-      seen.add(item.loc);
-      results.push(item.loc);
-    }
-    if (results.length >= 12) break;
+    if (!seen.has(item.loc)) { seen.add(item.loc); results.push(item.loc); }
   }
   return results;
 }
