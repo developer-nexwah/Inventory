@@ -3024,7 +3024,7 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
     if (fpMatch)  score += 2;
     if (valMatch) score += 1;
     // Footprint match alone is sufficient — same package = likely interchangeable
-    if (hasDedicatedCols && score < 2) return;
+   if (hasDedicatedCols && score < 3) return;
     if (!hasDedicatedCols && score < 2) return;
     scored.push({ loc, score });
   });
