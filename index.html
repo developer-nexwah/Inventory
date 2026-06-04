@@ -2931,15 +2931,26 @@ function closeTrackModal(){document.getElementById("trackModalOverlay").style.di
 
 // ── BOM RECOMMENDATIONS ────────────────────────────────────
 function extractValueFromText(text) {
-  const s = String(text||'').toUpperCase().replace(/[^A-Z0-9.]/g,' ');
-  const m = s.match(/(\d+\.?\d*\s*(?:PF|NF|UF|MF|OHM|MHZ|KHZ|UH|NH|MH))|(\d+\.?\d*\s*[KMRG])(?=\s|$)/);
-  if (m) return (m[1]||m[2]).replace(/\s+/g,'');
+  // Replace all non-alphanumeric with space so 100NF-100V becomes "100NF 100V"
+  const s = String(text||'').toUpperCase().replace(/[^A-Z0-9.]/g,' ').replace(/\s+/g,' ');
+  // Try capacitor/inductor units first (more specific)
+  const cap = s.match(/(?:^|\s)(\d+\.?\d*)\s*(PF|NF|UF|MF|UH|NH|MH)(?:\s|$)/);
+  if (cap) return cap[1] + cap[2];
+  // Try resistor units
+  const res = s.match(/(?:^|\s)(\d+\.?\d*)\s*(K|M|R|OHM)(?:\s|$)/);
+  if (res) return res[1] + res[2];
+  // Try plain number that looks like a value (e.g. "100" in "100 10% 50V")
+  const plain = s.match(/(?:^|\s)(\d+\.?\d*)(?:\s|$)/);
+  if (plain) return plain[1];
   return '';
 }
 
 function extractFootprintFromText(text) {
-  // Normalize KiCad prefixes: C0603→0603, R0402→0402, CAP-SMD_BD4.0→skip
-  const s = String(text||'').toUpperCase().replace(/-/g,'').replace(/\b[CR](0[24][05][123])\b/g,'$1');
+  // Replace separators with spaces, then normalize C0603→0603, R0402→0402
+  const s = String(text||'').toUpperCase()
+    .replace(/[^A-Z0-9]/g,' ')
+    .replace(/\s+/g,' ')
+    .replace(/\b[CR](0[24][05][12368]0?)\b/g,'$1');
   const fps = [
     'C0201','C0402','C0603','C0805','C1206','C1210','C1812',
     'R0201','R0402','R0603','R0805','R1206','R1210','R1812',
