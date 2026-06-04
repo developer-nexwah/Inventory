@@ -2796,16 +2796,16 @@ const matchSearch=!search||[r[C.projectName],r[C.location],r[C.source],r[C.descr
     if(!data.length){tbody.innerHTML=`<tr><td colspan="8" class="empty-state">${search?"No orders match your search.":"No orders yet — click + New Order to add one."}</td></tr>`;return;}
     const statusLabels={new:"New",pending:"Pending",progress:"In Progress",completed:"Completed",cancelled:"Cancelled"};
     tbody.innerHTML=data.map(({r,origIdx})=>{
-      const status=(r[C.status]||"new").toLowerCase();
-      const tracking=escHtml(r[C.tracking]||"");
+  const status=(r[6]||"new").toLowerCase();
+      const tracking=escHtml(r[10]||"");
   return `<tr class="inv-row-clickable" onclick="openOrderDrawer(${origIdx})">
-  <td style="color:var(--muted);font-size:12px">${r[C.date]?formatDate(r[C.date]):"—"}</td>
-  <td style="font-weight:600">${escHtml(r[C.projectName]||"—")}</td>
-  <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(r[C.description]||"—")}</td>
-  <td style="font-size:12px;color:var(--muted)">${escHtml(r[C.designator]||"—")}</td>
-  <td class="mono" style="font-size:12px">${escHtml(r[C.tracking]||"—")}</td>
-  <td style="font-family:var(--mono);font-size:12px">${escHtml(r[C.qty]||"—")}</td>
-  <td style="font-weight:500">${escHtml(r[C.company]||"—")}</td>
+  <td style="color:var(--muted);font-size:12px">${r[0]?formatDate(r[0]):"—"}</td>
+  <td style="font-weight:600">${escHtml(r[1]||"—")}</td>
+  <td style="max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(r[3]||"—")}</td>
+  <td style="font-size:12px;color:var(--muted)">${escHtml(r[7]||"—")}</td>
+  <td class="mono" style="font-size:12px">${escHtml(r[2]||"—")}</td>
+  <td style="font-family:var(--mono);font-size:12px">${escHtml(r[4]||"—")}</td>
+  <td style="font-weight:500">${escHtml(r[5]||"—")}</td>
   <td class="mono" style="font-size:12px">${tracking?`<span onclick="openTrackModal('${tracking}');event.stopPropagation()" style="color:var(--accent);cursor:pointer;text-decoration:underline dotted">${tracking}</span>`:'<span style="color:var(--muted)">—</span>'}</td>
   <td><span class="order-status ${status}">${statusLabels[status]||status}</span></td>
   <td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm" onclick="openOrderDrawer(${origIdx})">Edit</button></td>
@@ -2827,18 +2827,18 @@ function openOrderDrawer(rowIdx){
  ["orderCompanyInput","orderContactInput","orderDescInput","orderDesignatorInput","orderPartNumberInput","orderQtyInput","orderDueDateInput","orderValueInput","orderNotesInput","orderTrackingInput"].forEach(id=>document.getElementById(id).value="");
   }else{
     const rows=_ordersCache||[];const r=rows[rowIdx-1];if(!r)return;const C=ORDER_COLS;
-    document.getElementById("orderIdInput").value=r[C.projectName]||"";
-    document.getElementById("orderStatusInput").value=(r[C.status]||"new").toLowerCase();
-    document.getElementById("orderCompanyInput").value=r[C.company]||"";
-    document.getElementById("orderContactInput").value=r[C.contact]||"";
-    document.getElementById("orderDescInput").value=r[C.description]||"";
-    document.getElementById("orderQtyInput").value=r[C.qty]||"";
-    document.getElementById("orderDateInput").value=r[C.date]||"";
-    document.getElementById("orderDueDateInput").value=r[C.dueDate]||"";
-    document.getElementById("orderValueInput").value=r[C.value]||"";
-    document.getElementById("orderNotesInput").value=r[C.notes]||"";
-    document.getElementById("orderTrackingInput").value=r[C.tracking]||"";
-   document.getElementById("orderPartNumberInput").value=r[C.partNumber]||"";
+    document.getElementById("orderIdInput").value        = r[1]||"";
+    document.getElementById("orderStatusInput").value    = (r[6]||"new").toLowerCase();
+    document.getElementById("orderCompanyInput").value   = r[5]||"";
+    document.getElementById("orderContactInput").value   = r[8]||"";
+    document.getElementById("orderDescInput").value      = r[3]||"";
+    document.getElementById("orderQtyInput").value       = r[4]||"";
+    document.getElementById("orderDateInput").value      = r[0]||"";
+    document.getElementById("orderDueDateInput").value   = r[7]||"";
+    document.getElementById("orderValueInput").value     = r[9]||"";
+    document.getElementById("orderNotesInput").value     = r[12]||"";
+    document.getElementById("orderTrackingInput").value  = r[10]||"";
+    document.getElementById("orderPartNumberInput").value= r[2]||"";
   }
   document.getElementById("orderDrawerOverlay").classList.add("open");
   document.getElementById("orderDrawer").classList.add("open");
@@ -2856,7 +2856,21 @@ async function saveOrder(){
   if(!company){statusEl.style.display="block";statusEl.innerHTML="Company name is required.";statusEl.className="status-bar err";return;}
   if(!desc){statusEl.style.display="block";statusEl.innerHTML="Description is required.";statusEl.className="status-bar err";return;}
   statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Saving…';statusEl.className="status-bar loading";
- const row=[document.getElementById("orderDateInput").value||todayStr(),document.getElementById("orderIdInput").value.trim(),company,document.getElementById("orderContactInput").value.trim(),desc,document.getElementById("orderQtyInput").value.trim(),document.getElementById("orderStatusInput").value,document.getElementById("orderDueDateInput").value,document.getElementById("orderValueInput").value.trim(),document.getElementById("orderNotesInput").value.trim(),document.getElementById("orderTrackingInput").value.trim(),document.getElementById("orderDesignatorInput").value.trim(),document.getElementById("orderPartNumberInput").value.trim()];
+const row=[
+    document.getElementById("orderDateInput").value||todayStr(),
+    document.getElementById("orderIdInput").value.trim(),
+    document.getElementById("orderPartNumberInput").value.trim(),
+    document.getElementById("orderDescInput").value.trim(),
+    document.getElementById("orderQtyInput").value.trim(),
+    document.getElementById("orderCompanyInput").value.trim(),
+    document.getElementById("orderStatusInput").value,
+    document.getElementById("orderDueDateInput").value,
+    document.getElementById("orderContactInput").value.trim(),
+    document.getElementById("orderValueInput").value.trim(),
+    document.getElementById("orderTrackingInput").value.trim(),
+    "",
+    document.getElementById("orderNotesInput").value.trim()
+  ];
   try{
     const url=isNew
       ?`${APPS_SCRIPT_URL}?action=append&sheet=${encodeURIComponent(ORDERS_SHEET)}&row=${encodeURIComponent(JSON.stringify(row))}`
