@@ -3026,12 +3026,18 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
     const loc = getEffectiveLocation(r, i+2);
     if (!loc) return;
     let score = 0;
-  const fpMatch  = targetFP  && fp  && fp.replace(/-/g,'') === targetFP.replace(/-/g,'');
+const fpMatch  = targetFP && fp && fp.replace(/-/g,'') === targetFP.replace(/-/g,'');
     const valMatch = targetVal && val && normalizeCapValue(val) === normalizeCapValue(targetVal);
-    if (fpMatch)  score += 2;
-    if (valMatch) score += 1;
-    // Footprint match alone is sufficient — same package = likely interchangeable
-   if (score < 3) return;
+    
+    // Debug: also try partial value match as fallback
+    const valPartial = targetVal && val && (
+      normalizeCapValue(val) === normalizeCapValue(targetVal) ||
+      String(r[3]||'').toUpperCase().includes(targetVal.replace(/[^A-Z0-9]/g,''))
+    );
+    
+    if (fpMatch) score += 2;
+    if (valPartial) score += 1;
+    if (score < 3) return;
     scored.push({ loc, score });
   });
 
