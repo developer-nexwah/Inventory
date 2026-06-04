@@ -2965,7 +2965,31 @@ function extractFootprintFromText(text) {
   if (m) return m[1];
   return '';
 }
-
+function normalizeCapValue(v) {
+  // Convert all equivalent capacitor values to pF for comparison
+  // 100nF = 0.1uF = 100000pF
+  const s = String(v||'').toUpperCase().replace(/\s+/g,'');
+  const m = s.match(/^(\d+\.?\d*)(PF|NF|UF|MF)$/);
+  if (!m) {
+    // Resistor/other: normalize 10K=10000, 4.7K=4700, 22R=22
+    const r = s.match(/^(\d+\.?\d*)(K|M|R|OHM)?$/);
+    if (r) {
+      const n = parseFloat(r[1]);
+      const u = r[2]||'';
+      if (u==='K') return String(Math.round(n*1000));
+      if (u==='M') return String(Math.round(n*1000000));
+      return String(Math.round(n));
+    }
+    return s;
+  }
+  const n = parseFloat(m[1]), unit = m[2];
+  let pf;
+  if (unit==='PF') pf = n;
+  else if (unit==='NF') pf = n * 1000;
+  else if (unit==='UF') pf = n * 1000000;
+  else if (unit==='MF') pf = n * 1000000000;
+  return String(Math.round(pf));
+}
 function getBomRecommendations(bomRow, mapping, sheetRows) {
   // Try dedicated columns first
 // Use mapped columns first, then fall back to raw column name detection
@@ -2995,11 +3019,12 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
     const loc = getEffectiveLocation(r, i+2);
     if (!loc) return;
     let score = 0;
-    const fpMatch  = targetFP  && fp  && fp.replace(/-/g,'') === targetFP.replace(/-/g,'');
-    const valMatch = targetVal && val && (val === targetVal || val.startsWith(targetVal) || targetVal.startsWith(val));
- if (fpMatch)  score += 2;
+  const fpMatch  = targetFP  && fp  && fp.replace(/-/g,'') === targetFP.replace(/-/g,'');
+    const valMatch = targetVal && val && normalizeCapValue(val) === normalizeCapValue(targetVal);
+    if (fpMatch)  score += 2;
     if (valMatch) score += 1;
-    if (hasDedicatedCols && score < 3) return;
+    // Footprint match alone is sufficient — same package = likely interchangeable
+    if (hasDedicatedCols && score < 2) return;
     if (!hasDedicatedCols && score < 2) return;
     scored.push({ loc, score });
   });
