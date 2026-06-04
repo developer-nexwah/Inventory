@@ -1742,7 +1742,9 @@ const COL_MAP_FIELDS_BOM = [
  { key:"NexwahPN", label:"Nexwah PN", required:false },
  { key:"Quantity", label:"Quantity (per set)", required:true },
  { key:"Sets", label:"No. of Sets (only if >1 board)", required:false },
- { key:"Description", label:"Description", required:false },
+ { key:"Footprint", label:"Footprint / Package", required:false },
+ { key:"Value", label:"Value", required:false },
+ { key:"Description", label:"Description / Comment", required:false },
  { key:"Supplier", label:"Supplier", required:false },
  { key:"SupplierPN", label:"Supplier PN", required:false },
 ];
@@ -1765,7 +1767,9 @@ function autoDetectColumns(headers) {
  mapping.NexwahPN  = find(/^(NEXWAH\s*PN|NEXWAH\s*PART|NEXWAH|NPN)$/,/NEXWAH/);
  mapping.Quantity  = find(/^(QTY|QUANTITY|REQ|REQUIRED|COUNT|AMOUNT)$/,/QUANT/,/QTY/);
  mapping.Sets      = find(/^([2-9]\s*SETS?|[1-9]\d+\s*SETS?|SETS?|MULTIPLIER|MULT|NO\s*OF\s*SETS?|BOARDS?|RUNS?|COPIES)$/,/^[2-9]\s*SET/,/^SETS?$/);
- mapping.Description = find(/^(DESC|DESCRIPTION|NAME|COMPONENT|ITEM)$/,/DESC/);
+mapping.Description = find(/^(DESC|DESCRIPTION|NAME|COMPONENT|ITEM)$/,/DESC/);
+ mapping.Footprint   = find(/^(FOOTPRINT|FP|PACKAGE|PKG|LAND\s*PATTERN)$/,/FOOTPRINT/,/PACKAGE/);
+ mapping.Value       = find(/^(VALUE|VAL|COMPONENT\s*VALUE)$/,/^VALUE$/);
  mapping.Supplier  = find(/^(SUPPLIER|VENDOR|SOURCE|DISTRIBUTOR)$/,/SUPPLIER/,/VENDOR/);
  mapping.SupplierPN= find(/^(SUPPLIER\s*PN|SUPPLIER\s*PART|SUPP\s*PN|ORDER\s*CODE|DISTRIBUTOR\s*PN|DIST\s*PN|CPN)$/,/SUPPLIER.*PN/,/SUPPLIER.*PART/);
  mapping.Location  = find(/^(LOCATION|LOC|BIN|SHELF|STORAGE|POSITION)$/,/LOCAT/);
@@ -2934,7 +2938,8 @@ function extractValueFromText(text) {
 }
 
 function extractFootprintFromText(text) {
-  const s = String(text||'').toUpperCase().replace(/-/g,'');
+  // Normalize KiCad prefixes: C0603→0603, R0402→0402, CAP-SMD_BD4.0→skip
+  const s = String(text||'').toUpperCase().replace(/-/g,'').replace(/\b[CR](0[24][05][123])\b/g,'$1');
   const fps = [
     'C0201','C0402','C0603','C0805','C1206','C1210','C1812',
     'R0201','R0402','R0603','R0805','R1206','R1210','R1812',
@@ -2963,16 +2968,16 @@ function extractFootprintFromText(text) {
 
 function getBomRecommendations(bomRow, mapping, sheetRows) {
   // Try dedicated columns first
-  const footprintCol = bomRow['Footprint'] || bomRow['footprint'] || bomRow['FOOTPRINT'] || '';
-  const valueCol     = bomRow['Value']     || bomRow['value']     || bomRow['VALUE']     || '';
-  const commentCol   = bomRow['Comment']   || bomRow['comment']   || bomRow['COMMENT']   || '';
-  const descCol      = mapping.Description ? (bomRow[mapping.Description]||'') : '';
+// Use mapped columns first, then fall back to raw column name detection
+  const footprintCol = (mapping.Footprint ? bomRow[mapping.Footprint]||'' : '')
+    || bomRow['Footprint'] || bomRow['footprint'] || bomRow['FOOTPRINT'] || '';
+  const valueCol = (mapping.Value ? bomRow[mapping.Value]||'' : '')
+    || bomRow['Value'] || bomRow['value'] || bomRow['VALUE'] || '';
+  const commentCol = bomRow['Comment'] || bomRow['comment'] || bomRow['COMMENT'] || '';
+  const descCol = mapping.Description ? (bomRow[mapping.Description]||'') : '';
 
-  // If dedicated columns exist use them, otherwise extract from description
-const hasDedicatedCols = !!(footprintCol && valueCol);
-  const extractSrc = hasDedicatedCols
-    ? [footprintCol, valueCol, commentCol, descCol].join(' ')
-    : descCol;
+  const hasDedicatedCols = !!(footprintCol || valueCol);
+  const extractSrc = [footprintCol, valueCol, commentCol, descCol].filter(Boolean).join(' ');
 
   const targetFP  = extractFootprintFromText(extractSrc);
   const targetVal = extractValueFromText(extractSrc);
