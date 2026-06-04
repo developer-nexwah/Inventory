@@ -2928,8 +2928,15 @@ function closeTrackModal(){document.getElementById("trackModalOverlay").style.di
 // ── BOM RECOMMENDATIONS ────────────────────────────────────
 function extractFootprintFromText(text) {
   const s = String(text||'').toUpperCase();
-  const m = s.match(/\b(01005|0201|0402|0603|0805|1206|1210|1812|2010|2512|SOT-?23[A-Z0-9]*|SOT-?323|SOD-?123|SOD-?323|SC-?70|SC-?88|SMA\b|SMB\b|SMC\b|DO-?214[A-Z]?|TO-?220|TO-?252|TO-?263)\b/);
-  return m ? m[1].replace(/-/g,'').toUpperCase() : '';
+  const m = s.match(/(?:^|[\s,_\-])([A-Z]?)(01005|0201|0402|0603|0805|1206|1210|1812|2010|2512)(?:$|[\s,_\-])/);
+  if (m) return m[2].toUpperCase();
+  // Also try bare match without word boundary for cases like C0603, R0805
+  const m2 = s.match(/[A-Z]?(01005|0201|0402|0603|0805|1206|1210|1812|2010|2512)/);
+  if (m2) return m2[1].toUpperCase();
+  // IC/transistor packages
+  const m3 = s.match(/\b(SOT-?23[A-Z0-9]*|SOT-?323|SOD-?123|SOD-?323|SC-?70|SC-?88|SMA|SMB|SMC|DO-?214[A-Z]?|TO-?220|TO-?252|TO-?263)\b/);
+  if (m3) return m3[1].replace(/-/g,'').toUpperCase();
+  return '';
 }
 
 function extractValueFromText(text) {
