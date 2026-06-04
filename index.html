@@ -2931,17 +2931,15 @@ function closeTrackModal(){document.getElementById("trackModalOverlay").style.di
 
 // ── BOM RECOMMENDATIONS ────────────────────────────────────
 function extractValueFromText(text) {
-  // Replace all non-alphanumeric with space so 100NF-100V becomes "100NF 100V"
-  const s = String(text||'').toUpperCase().replace(/[^A-Z0-9.]/g,' ').replace(/\s+/g,' ');
-  // Try capacitor/inductor units first (more specific)
+  const s = String(text||'').toUpperCase()
+    .replace(/(\d)\.(\d)/g, '$1_$2')  // protect decimal points
+    .replace(/[^A-Z0-9_.]/g, ' ')
+    .replace(/_/g, '.')               // restore decimal points
+    .replace(/\s+/g, ' ');
   const cap = s.match(/(?:^|\s)(\d+\.?\d*)\s*(PF|NF|UF|MF|UH|NH|MH)(?:\s|$)/);
   if (cap) return cap[1] + cap[2];
-  // Try resistor units
   const res = s.match(/(?:^|\s)(\d+\.?\d*)\s*(K|M|R|OHM)(?:\s|$)/);
   if (res) return res[1] + res[2];
-  // Try plain number that looks like a value (e.g. "100" in "100 10% 50V")
-  const plain = s.match(/(?:^|\s)(\d+\.?\d*)(?:\s|$)/);
-  if (plain) return plain[1];
   return '';
 }
 
@@ -2979,21 +2977,22 @@ function extractFootprintFromText(text) {
 
 function normalizeCapValue(v) {
   const s = String(v||'').toUpperCase().replace(/\s+/g,'');
-  const capM = s.match(/(\d+\.?\d*)(PF|NF|UF|MF)/);
+  const capM = s.match(/^(\d+\.?\d*)(PF|NF|UF|MF|UH|NH|MH)$/);
   if (capM) {
     const n = parseFloat(capM[1]), unit = capM[2];
-    let pf;
-    if (unit==='PF') pf = n;
-    else if (unit==='NF') pf = n * 1000;
-    else if (unit==='UF') pf = n * 1000000;
-    else if (unit==='MF') pf = n * 1000000000;
-    return 'CAP:' + Math.round(pf);
+    if (unit==='PF') return 'CAP:' + Math.round(n);
+    if (unit==='NF') return 'CAP:' + Math.round(n * 1000);
+    if (unit==='UF') return 'CAP:' + Math.round(n * 1000000);
+    if (unit==='MF') return 'CAP:' + Math.round(n * 1000000000);
+    if (unit==='UH') return 'IND:' + Math.round(n * 1000);
+    if (unit==='NH') return 'IND:' + Math.round(n);
+    if (unit==='MH') return 'IND:' + Math.round(n * 1000000);
   }
-  const resM = s.match(/(\d+\.?\d*)(K|M|R|OHM)/);
+  const resM = s.match(/^(\d+\.?\d*)(K|M|R|OHM)$/);
   if (resM) {
     const n = parseFloat(resM[1]), unit = resM[2];
-    if (unit==='K') return 'RES:' + Math.round(n*1000);
-    if (unit==='M') return 'RES:' + Math.round(n*1000000);
+    if (unit==='K') return 'RES:' + Math.round(n * 1000);
+    if (unit==='M') return 'RES:' + Math.round(n * 1000000);
     return 'RES:' + Math.round(n);
   }
   return s;
@@ -3032,8 +3031,7 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
     if (fpMatch)  score += 2;
     if (valMatch) score += 1;
     // Footprint match alone is sufficient — same package = likely interchangeable
-   if (hasDedicatedCols && score < 3) return;
-    if (!hasDedicatedCols && score < 2) return;
+   if (score < 3) return;
     scored.push({ loc, score });
   });
 
