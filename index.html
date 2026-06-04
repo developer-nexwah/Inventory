@@ -2960,7 +2960,7 @@ const hasDedicatedCols = !!(footprintCol && valueCol);
 
   const ownMpn = (mapping.MfrPN ? String(bomRow[mapping.MfrPN]||'') : '').trim().toUpperCase();
 
-  const scored = [];
+ const scored = [];
   sheetRows.slice(1).forEach((r, i) => {
     if (ownMpn && String(r[2]||'').trim().toUpperCase() === ownMpn) return;
     const invSrc = [r[2]||'', r[3]||''].join(' ');
@@ -2969,9 +2969,14 @@ const hasDedicatedCols = !!(footprintCol && valueCol);
     const loc = getEffectiveLocation(r, i+2);
     if (!loc) return;
     let score = 0;
-    if (targetFP  && fp  && fp.replace(/-/g,'').includes(targetFP.replace(/-/g,'')))  score += 2;
-    if (targetVal && val && (val === targetVal || val.startsWith(targetVal) || targetVal.startsWith(val))) score += 1;
-    if (score > 0) scored.push({ loc, score });
+    const fpMatch  = targetFP  && fp  && fp.replace(/-/g,'') === targetFP.replace(/-/g,'');
+    const valMatch = targetVal && val && (val === targetVal || val.startsWith(targetVal) || targetVal.startsWith(val));
+    if (fpMatch)  score += 2;
+    if (valMatch) score += 1;
+    // Require both to match when we have dedicated columns, otherwise footprint alone is enough
+    if (hasDedicatedCols && score < 3) return;
+    if (!hasDedicatedCols && score < 2) return;
+    scored.push({ loc, score });
   });
 
   scored.sort((a,b) => b.score - a.score);
