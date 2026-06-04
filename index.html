@@ -2940,30 +2940,34 @@ function extractValueFromText(text) {
   return '';
 }
 
-function getBomRecommendations(bомRow, mapping, sheetRows) {
-  // Extract footprint and value from the BOM row's description column only
-  const src = [
-    mapping.Description ? (bомRow[mapping.Description]||'') : '',
-    mapping.MfrPN ? (bомRow[mapping.MfrPN]||'') : ''
-  ].join(' ');
+function getBomRecommendations(bomRow, mapping, sheetRows) {
+  // Try dedicated columns first
+  const footprintCol = bomRow['Footprint'] || bomRow['footprint'] || bomRow['FOOTPRINT'] || '';
+  const valueCol     = bomRow['Value']     || bomRow['value']     || bomRow['VALUE']     || '';
+  const commentCol   = bomRow['Comment']   || bomRow['comment']   || bomRow['COMMENT']   || '';
+  const descCol      = mapping.Description ? (bomRow[mapping.Description]||'') : '';
 
-  const targetFP  = extractFootprintFromText(src);
-  const targetVal = extractValueFromText(src);
+  // If dedicated columns exist use them, otherwise extract from description
+  const hasDedicatedCols = !!(footprintCol || valueCol || commentCol);
+  const extractSrc = hasDedicatedCols
+    ? [footprintCol, valueCol, commentCol, descCol].join(' ')
+    : descCol;
+
+  const targetFP  = extractFootprintFromText(extractSrc);
+  const targetVal = extractValueFromText(extractSrc);
 
   if (!targetFP && !targetVal) return [];
 
-  // Get the BOM part's own MPN to exclude it from suggestions
-  const ownMpn = (mapping.MfrPN ? String(bомRow[mapping.MfrPN]||'') : '').trim().toUpperCase();
+  const ownMpn = (mapping.MfrPN ? String(bomRow[mapping.MfrPN]||'') : '').trim().toUpperCase();
 
   const scored = [];
   sheetRows.slice(1).forEach((r, i) => {
-    // Skip the exact same part
     if (ownMpn && String(r[2]||'').trim().toUpperCase() === ownMpn) return;
-    const desc = String(r[3]||'');
-    const fp  = extractFootprintFromText(desc);
-    const val = extractValueFromText(desc);
+    const invSrc = [r[2]||'', r[3]||''].join(' ');
+    const fp  = extractFootprintFromText(invSrc);
+    const val = extractValueFromText(invSrc);
     const loc = getEffectiveLocation(r, i+2);
-    if (!loc) return; // skip if no location at all
+    if (!loc) return;
     let score = 0;
     if (targetFP  && fp  && fp.replace(/-/g,'').includes(targetFP.replace(/-/g,'')))  score += 2;
     if (targetVal && val && (val === targetVal || val.startsWith(targetVal) || targetVal.startsWith(val))) score += 1;
@@ -2973,7 +2977,7 @@ function getBomRecommendations(bомRow, mapping, sheetRows) {
   scored.sort((a,b) => b.score - a.score);
   const seen = new Set(), results = [];
   for (const item of scored) {
-    if (!seen.has(item.loc) && results.length < 3) { seen.add(item.loc); results.push(item.loc); }
+   if (!seen.has(item.loc)) { seen.add(item.loc); results.push(item.loc); }
   }
   return results;
 }
