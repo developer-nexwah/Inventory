@@ -2927,8 +2927,8 @@ function closeTrackModal(){document.getElementById("trackModalOverlay").style.di
 
 // ── BOM RECOMMENDATIONS ────────────────────────────────────
 function extractValueFromText(text) {
-  const s = String(text||'').toUpperCase();
-  const m = s.match(/\b(\d+\.?\d*\s*(?:PF|NF|UF|MF|OHM|MHZ|KHZ|UH|NH|MH))\b|\b(\d+\.?\d*\s*[KMRG])\b/);
+  const s = String(text||'').toUpperCase().replace(/[^A-Z0-9.]/g,' ');
+  const m = s.match(/(\d+\.?\d*\s*(?:PF|NF|UF|MF|OHM|MHZ|KHZ|UH|NH|MH))|(\d+\.?\d*\s*[KMRG])(?=\s|$)/);
   if (m) return (m[1]||m[2]).replace(/\s+/g,'');
   return '';
 }
@@ -2992,11 +2992,10 @@ const hasDedicatedCols = !!(footprintCol && valueCol);
     let score = 0;
     const fpMatch  = targetFP  && fp  && fp.replace(/-/g,'') === targetFP.replace(/-/g,'');
     const valMatch = targetVal && val && (val === targetVal || val.startsWith(targetVal) || targetVal.startsWith(val));
-    if (fpMatch)  score += 2;
+ if (fpMatch)  score += 2;
     if (valMatch) score += 1;
-    // Require both to match when we have dedicated columns, otherwise footprint alone is enough
     if (hasDedicatedCols && score < 3) return;
-    if (!hasDedicatedCols && score < 1) return;
+    if (!hasDedicatedCols && score < 2) return;
     scored.push({ loc, score });
   });
 
