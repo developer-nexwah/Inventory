@@ -2976,10 +2976,9 @@ function extractFootprintFromText(text) {
   if (m) return m[1];
   return '';
 }
-function normalizeCapValue(v) {
+
 function normalizeCapValue(v) {
   const s = String(v||'').toUpperCase().replace(/\s+/g,'').replace(/Ω|OHM/g,'R');
-  // Extract just the number+unit from anywhere in the string
   const capM = s.match(/(\d+\.?\d*)(PF|NF|UF|MF)/);
   if (capM) {
     const n = parseFloat(capM[1]), unit = capM[2];
@@ -3000,25 +2999,6 @@ function normalizeCapValue(v) {
   const plain = s.match(/^(\d+\.?\d*)$/);
   if (plain) return String(Math.round(parseFloat(plain[1])));
   return s;
-  if (!m) {
-    // Resistor/other: normalize 10K=10000, 4.7K=4700, 22R=22
-    const r = s.match(/^(\d+\.?\d*)(K|M|R|OHM)?$/);
-    if (r) {
-      const n = parseFloat(r[1]);
-      const u = r[2]||'';
-      if (u==='K') return String(Math.round(n*1000));
-      if (u==='M') return String(Math.round(n*1000000));
-      return String(Math.round(n));
-    }
-    return s;
-  }
-  const n = parseFloat(m[1]), unit = m[2];
-  let pf;
-  if (unit==='PF') pf = n;
-  else if (unit==='NF') pf = n * 1000;
-  else if (unit==='UF') pf = n * 1000000;
-  else if (unit==='MF') pf = n * 1000000000;
-  return String(Math.round(pf));
 }
 function getBomRecommendations(bomRow, mapping, sheetRows) {
   // Try dedicated columns first
