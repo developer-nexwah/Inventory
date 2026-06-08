@@ -1066,7 +1066,7 @@ async function searchMarketPrice() {
   statusEl.className = 'status-bar loading';
   const pn = encodeURIComponent(partNumber);
   const distUrls = {
-    Mouser:  `https://www.mouser.com/Search/Refine?Keyword=${pn}`,
+    Mouser:  `https://www.mouser.sg/c/?q=${pn}`,
     DigiKey: `https://www.digikey.com/en/products/result?keywords=${pn}`,
   };
 
@@ -1102,7 +1102,7 @@ async function searchMarketPrice() {
           const mStock = parseInt((mPart.Availability || '').replace(/[^0-9]/g,'') || '0');
           results.distributors.push({
             name: 'Mouser', stock: mStock, currency: 'USD', price_breaks: mBreaks,
-            url: mPart.ProductDetailUrl ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.com' + mPart.ProductDetailUrl) : distUrls.Mouser,
+            url: mPart.ProductDetailUrl ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.sg' + mPart.ProductDetailUrl) : distUrls.Mouser,
             in_stock: mStock > 0
           });
         } else {
@@ -3011,7 +3011,7 @@ async function fetchBomPartPriceForExport(partNumber) {
     priceSgd: null, priceUsd: null,
     mouserPriceSgd: null, dkPriceSgd: null,
     dist: 'Mouser',
-    url: `https://www.mouser.com/Search/Refine?Keyword=${encodeURIComponent(partNumber)}`
+    url: `https://www.mouser.sg/c/?q=${encodeURIComponent(partNumber)}`
   };
 
   const rate = await getUsdSgdRate();
@@ -3031,13 +3031,17 @@ async function fetchBomPartPriceForExport(partNumber) {
       const mPart = mParts.find(p => (p.ManufacturerPartNumber||'').toUpperCase() === partNumber.toUpperCase()) || mParts[0];
       if (mPart) {
         const breaks = (mPart.PriceBreaks || []).map(pb => parseFloat((pb.Price||'0').replace(/[^0-9.]/g,'')));
-        const minUsd = breaks.filter(p=>p>0).reduce((a,b)=>Math.min(a,b), Infinity);
+        const minRaw = breaks.filter(p=>p>0).reduce((a,b)=>Math.min(a,b), Infinity);
         const stock = parseInt((mPart.Availability||'').replace(/[^0-9]/g,'')||'0');
         const url = mPart.ProductDetailUrl
-          ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.com'+mPart.ProductDetailUrl)
-          : `https://www.mouser.com/Search/Refine?Keyword=${encodeURIComponent(partNumber)}`;
-        const priceUsd = minUsd < Infinity ? minUsd : null;
-        results.push({ dist:'Mouser', priceUsd, priceSgd: toSgd(priceUsd), url, stock });
+          ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.sg'+mPart.ProductDetailUrl)
+          : `https://www.mouser.sg/c/?q=${encodeURIComponent(partNumber)}`;
+        const priceRaw = minRaw < Infinity ? minRaw : null;
+        // Mouser SG API returns SGD prices — detect currency to avoid double-converting
+        const currency = (mPart.PriceBreaks?.[0]?.Currency || 'SGD').toUpperCase();
+        const priceSgd = priceRaw == null ? null : (currency === 'USD' ? toSgd(priceRaw) : priceRaw);
+        const priceUsd = priceRaw == null ? null : (currency === 'USD' ? priceRaw : +(priceRaw / rate).toFixed(6));
+        results.push({ dist:'Mouser', priceUsd, priceSgd, url, stock });
       }
     } catch(e) {}
   }
@@ -3131,8 +3135,8 @@ async function fetchBomPartPrice(partNumber, idx) {
           const minPrice = breaks.filter(p => p > 0).reduce((a,b) => Math.min(a,b), Infinity);
           const stock = parseInt((mPart.Availability||'').replace(/[^0-9]/g,'')||'0');
           const url = mPart.ProductDetailUrl
-            ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.com'+mPart.ProductDetailUrl)
-            : `https://www.mouser.com/Search/Refine?Keyword=${encodeURIComponent(partNumber)}`;
+            ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.sg'+mPart.ProductDetailUrl)
+            : `https://www.mouser.sg/c/?q=${encodeURIComponent(partNumber)}`;
           if (minPrice < Infinity && stock > 0) results.push({ dist:'Mouser', price:minPrice, url, stock });
         }
       } catch(e) { /* skip mouser error */ }
