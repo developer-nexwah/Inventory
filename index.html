@@ -2694,13 +2694,14 @@ async function runBomCheck(mapping,rows){
     document.getElementById("bomStatus").className="status-bar "+(allOk?"ok":"warn");
   }catch(e){document.getElementById("bomStatus").innerHTML="Error: "+e.message;document.getElementById("bomStatus").className="status-bar err";}
 }
-  async function fetchPriceUSD(pn) {
+ async function fetchPriceUSD(pn, footprint='') {
+  const searchTerm = footprint ? `${pn} ${footprint}` : pn;
   try {
     if (cfg.mouserKey) {
       const r = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ SearchByKeywordRequest: { keyword: pn, records: 1, startingRecord: 0, searchOptions: 'InStock', searchWithSPNsFirst: 'N' } })
+        body: JSON.stringify({ SearchByKeywordRequest: { keyword: searchTerm, records: 1, startingRecord: 0, searchOptions: 'InStock', searchWithSPNsFirst: 'N' } })
       });
       const d = await r.json();
       const part = d?.SearchResults?.Parts?.[0];
@@ -2708,6 +2709,29 @@ async function runBomCheck(mapping,rows){
         return parseFloat((part.PriceBreaks[0].Price || '0').replace(/[^0-9.]/g, '')) || null;
       }
     }
+    if (cfg.dkClientId && cfg.dkSecret) {
+      const tokenResp = await fetch('https://api.digikey.com/v1/oauth2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=client_credentials&client_id=${encodeURIComponent(cfg.dkClientId)}&client_secret=${encodeURIComponent(cfg.dkSecret)}`
+      });
+      const { access_token } = await tokenResp.json();
+      if (access_token) {
+        const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${access_token}`, 'X-DIGIKEY-Client-Id': cfg.dkClientId, 'X-DIGIKEY-Locale-Site': 'US', 'X-DIGIKEY-Locale-Currency': 'USD', 'X-DIGIKEY-Locale-Language': 'en', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ keywords: searchTerm, limit: 1, offset: 0 })
+        });
+        if (dkResp.ok) {
+          const dd = await dkResp.json();
+          const p = dd?.Products?.[0];
+          if (p) return p.UnitPrice || p.unitPrice || p.StandardPricing?.[0]?.UnitPrice || null;
+        }
+      }
+    }
+  } catch(e) { console.warn('Price fetch failed for', pn, e); }
+  return null;
+}
     if (cfg.dkClientId && cfg.dkSecret) {
       const tokenResp = await fetch('https://api.digikey.com/v1/oauth2/token', {
         method: 'POST',
@@ -2776,11 +2800,19 @@ async function exportBomReport() {
   const USD_TO_SGD = 1.35;
   const notFoundRows = _bomOriginalRows.filter(r => r.__status === "NOT IN INVENTORY" || r.__status === "NOT ENOUGH");
   const priceMap = {};
-  for (const row of notFoundRows) {
-    const pn = (_bomOriginalMapping.MfrPN ? row[_bomOriginalMapping.MfrPN] : '') || '';
-    if (pn && !priceMap[pn]) {
-      priceMap[pn] = await fetchPriceUSD(pn);
+ for (const row of notFoundRows) {
+    const mfrPn = (_bomOriginalMapping.MfrPN ? row[_bomOriginalMapping.MfrPN] : '') || '';
+    const comment = row['Comment'] || row['comment'] || row['COMMENT'] || '';
+    const footprint = (_bomOriginalMapping.Footprint ? row[_bomOriginalMapping.Footprint] : '') || row['Footprint'] || '';
+    // Prefer comment (e.g. "PMBT3904", "18pF") over LCSC-specific mfrPn
+    const searchPn = (comment && comment.length > 2 && !/^\d+(\.\d+)?(uF|nF|pF|kΩ|Ω|K|R|MHz|kHz)$/i.test(comment))
+      ? comment
+      : mfrPn;
+    const key = searchPn || mfrPn;
+    if (key && !priceMap[key]) {
+      priceMap[key] = await fetchPriceUSD(key, footprint);
     }
+    row.__priceKey = key;
   }
   try {
     const wb = XLSX.utils.book_new();
@@ -2794,8 +2826,7 @@ async function exportBomReport() {
       if (row.__status !== undefined) {
         let priceSGD = "";
         if (row.__status === "NOT IN INVENTORY" || row.__status === "NOT ENOUGH") {
-          const pn = (_bomOriginalMapping.MfrPN ? row[_bomOriginalMapping.MfrPN] : '') || '';
-          const usd = priceMap[pn];
+          const usd = priceMap[row.__priceKey || ''];
           if (usd) priceSGD = (usd * USD_TO_SGD).toFixed(4);
           else if (!cfg.mouserKey && !cfg.dkClientId) priceSGD = "No API key";
           else priceSGD = "Not found";
