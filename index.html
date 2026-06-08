@@ -2686,12 +2686,10 @@ async function runBomCheck(mapping,rows){
       const fetchAll = notFoundItems.map(async (item) => {
         const result = await fetchBomPartPriceForExport(item.pn);
         item._row.__priceSgd     = result.priceSgd;
-        item._row.__priceUsd     = result.priceUsd;
         item._row.__dist         = result.dist;
         item._row.__orderUrl     = result.url;
         item._row.__mouserSgd    = result.mouserPriceSgd;
         item._row.__dkSgd        = result.dkPriceSgd;
-        item._row.__fxRate       = result.rate;
         fetched++;
         if (priceStatusEl) priceStatusEl.innerHTML = `<span class="spinner"></span> Fetching prices… ${fetched}/${notFoundItems.length}`;
       });
@@ -2993,11 +2991,18 @@ function closeTrackModal(){document.getElementById("trackModalOverlay").style.di
 let _usdSgdRate = null;
 async function getUsdSgdRate() {
   if (_usdSgdRate) return _usdSgdRate;
-  try {
-    const resp = await fetch('https://api.frankfurter.app/latest?from=USD&to=SGD');
-    const data = await resp.json();
-    _usdSgdRate = data?.rates?.SGD || 1.35;
-  } catch(e) { _usdSgdRate = 1.35; } // fallback fixed rate
+  // Try a CORS-friendly source; fall back to a fixed rate if blocked
+  const sources = [
+    () => fetch('https://open.er-api.com/v6/latest/USD').then(r=>r.json()).then(d=>d?.rates?.SGD),
+    () => fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json').then(r=>r.json()).then(d=>d?.usd?.sgd),
+  ];
+  for (const fn of sources) {
+    try {
+      const rate = await fn();
+      if (rate && rate > 1) { _usdSgdRate = rate; return rate; }
+    } catch(e) {}
+  }
+  _usdSgdRate = 1.35; // fallback if all sources blocked
   return _usdSgdRate;
 }
 
@@ -3017,7 +3022,7 @@ async function fetchBomPartPriceForExport(partNumber) {
   // ── MOUSER ────────────────────────────────────────────────
   if (cfg.mouserKey) {
     try {
-      // Pass SG locale so API returns SGD prices and correct stock
+      // countryCode=SG&currency=SGD → API returns SGD prices directly, no conversion needed
       const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}&countryCode=SG&languageCode=EN&currency=SGD`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ SearchByKeywordRequest: { keyword: partNumber, records: 3, startingRecord: 0, searchWithSPNsFirst: 'N' } })
@@ -3032,12 +3037,8 @@ async function fetchBomPartPriceForExport(partNumber) {
         const url = mPart.ProductDetailUrl
           ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.sg'+mPart.ProductDetailUrl)
           : `https://www.mouser.sg/c/?q=${encodeURIComponent(partNumber)}`;
-        const priceRaw = minRaw < Infinity ? minRaw : null;
-        // With currency=SGD param, prices come back in SGD directly — no FX conversion needed
-        const currency = (mPart.PriceBreaks?.[0]?.Currency || 'SGD').toUpperCase();
-        const priceSgd = priceRaw == null ? null : (currency === 'USD' ? toSgd(priceRaw) : priceRaw);
-        const priceUsd = priceRaw == null ? null : (currency === 'USD' ? priceRaw : +(priceRaw / rate).toFixed(6));
-        results.push({ dist:'Mouser', priceUsd, priceSgd, url, stock });
+        const priceSgd = minRaw < Infinity ? minRaw : null;
+        results.push({ dist:'Mouser', priceSgd, url, stock });
       }
     } catch(e) { console.warn('Mouser price fetch failed:', e.message); }
   }
@@ -3053,37 +3054,54 @@ async function fetchBomPartPriceForExport(partNumber) {
       const token = tokenData.access_token;
       if (!token) { console.warn('DigiKey token failed:', JSON.stringify(tokenData)); }
       if (token) {
-        const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'X-DIGIKEY-Client-Id': cfg.dkClientId,
-            'X-DIGIKEY-Locale-Site': 'US',
-            'X-DIGIKEY-Locale-Currency': 'USD',
-            'X-DIGIKEY-Locale-Language': 'en',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ keywords: partNumber, limit: 10, offset: 0, requestedQuantity: 1 })
-        });
-        if (dkResp.ok) {
-          const dkData = await dkResp.json();
-          const products = dkData?.Products || dkData?.products || [];
-          const dkPart = products.find(p =>
+        const dkHeaders = {
+          'Authorization': `Bearer ${token}`,
+          'X-DIGIKEY-Client-Id': cfg.dkClientId,
+          'X-DIGIKEY-Locale-Site': 'US',
+          'X-DIGIKEY-Locale-Currency': 'USD',
+          'X-DIGIKEY-Locale-Language': 'en',
+          'Content-Type': 'application/json'
+        };
+
+        // Try exact part number search first (more accurate than keyword)
+        let dkPart = null;
+        const pnResp = await fetch('https://api.digikey.com/products/v4/search/partNumber', {
+          method: 'POST', headers: dkHeaders,
+          body: JSON.stringify({ partNumber: partNumber, limit: 5, offset: 0, requestedQuantity: 1 })
+        }).catch(() => null);
+
+        if (pnResp?.ok) {
+          const pnData = await pnResp.json();
+          const pnProducts = pnData?.Products || pnData?.products || [];
+          dkPart = pnProducts.find(p =>
             (p.ManufacturerProductNumber||p.manufacturerProductNumber||'').toUpperCase() === partNumber.toUpperCase()
-          ) || products[0];
-          if (dkPart) {
-            const pricing = dkPart.StandardPricing || dkPart.standardPricing || [];
-            const prices = pricing.map(pb => pb.UnitPrice || pb.unitPrice || 0).filter(p => p > 0);
-            const minUsd = prices.length ? Math.min(...prices) : null;
-            const stock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? 0;
-            const url = dkPart.ProductUrl || dkPart.productUrl
-              || `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
-            results.push({ dist:'DigiKey', priceUsd: minUsd, priceSgd: toSgd(minUsd), url, stock });
-          } else { console.warn('DigiKey: no part found for', partNumber); }
-        } else {
-          const errText = await dkResp.text().catch(()=>'');
-          console.warn('DigiKey search failed:', dkResp.status, errText);
+          ) || pnProducts[0] || null;
         }
+
+        // Fall back to keyword search if part number search found nothing
+        if (!dkPart) {
+          const kwResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
+            method: 'POST', headers: dkHeaders,
+            body: JSON.stringify({ keywords: partNumber, limit: 10, offset: 0, requestedQuantity: 1 })
+          }).catch(() => null);
+          if (kwResp?.ok) {
+            const kwData = await kwResp.json();
+            const kwProducts = kwData?.Products || kwData?.products || [];
+            dkPart = kwProducts.find(p =>
+              (p.ManufacturerProductNumber||p.manufacturerProductNumber||'').toUpperCase() === partNumber.toUpperCase()
+            ) || kwProducts[0] || null;
+          }
+        }
+
+        if (dkPart) {
+          const pricing = dkPart.StandardPricing || dkPart.standardPricing || [];
+          const prices = pricing.map(pb => pb.UnitPrice || pb.unitPrice || 0).filter(p => p > 0);
+          const minUsd = prices.length ? Math.min(...prices) : null;
+          const stock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? 0;
+          const url = dkPart.ProductUrl || dkPart.productUrl
+            || `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
+          results.push({ dist:'DigiKey', priceUsd: minUsd, priceSgd: toSgd(minUsd), url, stock });
+        } else { console.warn('DigiKey: no part found for', partNumber); }
       }
     } catch(e) { console.warn('DigiKey price fetch failed:', e.message); }
   }
@@ -3101,13 +3119,11 @@ async function fetchBomPartPriceForExport(partNumber) {
   const dkRes     = results.find(r => r.dist === 'DigiKey');
 
   return {
-    priceSgd:      best.priceSgd,
-    priceUsd:      best.priceUsd,
-    dist:          best.dist,
-    url:           best.url,
+    priceSgd:       best.priceSgd,
+    dist:           best.dist,
+    url:            best.url,
     mouserPriceSgd: mouserRes?.priceSgd ?? null,
     dkPriceSgd:     dkRes?.priceSgd ?? null,
-    rate
   };
 }
 
