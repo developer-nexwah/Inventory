@@ -2700,9 +2700,48 @@ async function runBomCheck(mapping,rows){
     document.getElementById("bomStatus").className="status-bar "+(allOk?"ok":"warn");
   }catch(e){document.getElementById("bomStatus").innerHTML="Error: "+e.message;document.getElementById("bomStatus").className="status-bar err";}
 }
-function exportBomReport(){if(!_bomOriginalRows.length){toast("No results to export.");return;}try{const wb=XLSX.utils.book_new();const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Cheapest Price (USD)","Distributor","Order URL"];const exportData=[exportHeaders];_bomOriginalRows.forEach(row=>{const vals=_bomOriginalHeaders.map(h=>row[h]||"");if(row.__status!==undefined){const recsStr=row.__recs?row.__recs.map(r=>typeof r==='object'?r.loc:r).join(', '):'';vals.push(row.__status,row.__stock,row.__needed,row.__shortage>0?row.__shortage:"",row.__location,recsStr,row.__price!=null?row.__price:"",row.__dist||"",row.__orderUrl||"");}else{vals.push("","","","","","","","","");}exportData.push(vals);});const ws=XLSX.utils.aoa_to_sheet(exportData);// Style the header row bold
-const range=XLSX.utils.decode_range(ws['!ref']);for(let C=range.s.c;C<=range.e.c;C++){const addr=XLSX.utils.encode_cell({r:0,c:C});if(!ws[addr])continue;ws[addr].s={font:{bold:true}};}// Set column widths
-ws['!cols']=[...Array(exportHeaders.length)].map((_,i)=>({wch:i<_bomOriginalHeaders.length?18:16}));XLSX.utils.book_append_sheet(wb,ws,"BOM Check");XLSX.writeFile(wb,"BOM_Check_"+todayStr()+".xlsx");toast("Report downloaded.");}catch(e){toast("Export failed: "+e.message);}}
+function exportBomReport(){
+  if(!_bomOriginalRows.length){toast("No results to export.");return;}
+  try{
+    const wb=XLSX.utils.book_new();
+    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Cheapest Price (USD)","Distributor","Order Now"];
+    const exportData=[exportHeaders];
+    _bomOriginalRows.forEach(row=>{
+      const vals=_bomOriginalHeaders.map(h=>row[h]||"");
+      if(row.__status!==undefined){
+        const recsStr=row.__recs?row.__recs.map(r=>typeof r==='object'?r.loc:r).join(', '):'';
+        // Use placeholder for Order Now — we'll overwrite with hyperlink below
+        vals.push(row.__status,row.__stock,row.__needed,row.__shortage>0?row.__shortage:"",row.__location,recsStr,row.__price!=null?row.__price:"",row.__dist||"",row.__orderUrl?"Order @ "+(row.__dist||"Distributor"):"");
+      } else {
+        vals.push("","","","","","","","","");
+      }
+      exportData.push(vals);
+    });
+    const ws=XLSX.utils.aoa_to_sheet(exportData);
+
+    // Inject clickable hyperlinks into the Order Now column
+    const orderColIdx = exportHeaders.length - 1; // last column
+    _bomOriginalRows.forEach((row, ri) => {
+      if(!row.__orderUrl) return;
+      const cellAddr = XLSX.utils.encode_cell({r: ri+1, c: orderColIdx});
+      ws[cellAddr] = {
+        t: 's',
+        v: 'Order @ ' + (row.__dist||'Distributor'),
+        l: { Target: row.__orderUrl, Tooltip: 'Open ' + (row.__dist||'Distributor') },
+        s: { font: { color: { rgb: '1A56DB' }, underline: true } }
+      };
+    });
+
+    // Column widths
+    ws['!cols'] = exportHeaders.map((_,i) => ({
+      wch: i < _bomOriginalHeaders.length ? 18 : i === exportHeaders.length-1 ? 22 : 16
+    }));
+
+    XLSX.utils.book_append_sheet(wb,ws,"BOM Check");
+    XLSX.writeFile(wb,"BOM_Check_"+todayStr()+".xlsx");
+    toast("Report downloaded.");
+  }catch(e){toast("Export failed: "+e.message);}
+}
 async function confirmOrderDispatch(){const statusEl=document.getElementById("bomConfirmStatus");statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Deducting stock…';statusEl.className="status-bar loading";const today=todayStr();try{for(const item of bomPendingDispatch){const newQty=item.currentQty-item.qty;await sheetUpdate(item.rowIdx,newQty,today);await sheetAppendTx([today,item.pn,"Order Check","Use",item.qty,item.currentQty,newQty,"Order dispatch"]);}statusEl.innerHTML=`Stock deducted for ${bomPendingDispatch.length} parts.`;statusEl.className="status-bar ok";toast("Order dispatched.");bomPendingDispatch=[];document.getElementById("bomConfirmPanel").style.display="none";}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 function cancelOrderDispatch(){document.getElementById("bomConfirmPanel").style.display="none";bomPendingDispatch=[];}
 function downloadSampleCSV(){downloadFile("sample_order_bom.csv","text/csv","Part Number,Quantity,Description\nSN74LVC1G08DCKR,100,IC Gate AND\nGRM188R71H104KA93D,500,Cap 100nF 50V\n");}
