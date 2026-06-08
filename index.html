@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
  <meta charset="UTF-8" />
@@ -280,9 +280,10 @@
 </div>
 
 <div class="nav">
-<button class="nav-btn active" onclick="showPage('inventory',this)">Inventory</button>
+ <button class="nav-btn active" onclick="showPage('scanner',this)">Scan Label</button>
  <button class="nav-btn" onclick="showPage('bom',this)">Order Check</button>
  <button class="nav-btn" onclick="showPage('bulkreceive',this)">Bulk Receive</button>
+ <button class="nav-btn" onclick="showPage('inventory',this)">Inventory</button>
  <button class="nav-btn" onclick="showPage('location',this)">Location</button>
  <button class="nav-btn" onclick="showPage('marketprice',this)">Market Price</button>
  <button class="nav-btn" onclick="showPage('scanhistory',this)">Scan History</button>
@@ -294,7 +295,7 @@
  <div id="globalAlert"></div>
 
  <!-- SCANNER -->
- <div id="page-scanner" class="page">
+ <div id="page-scanner" class="page active">
  <div class="card">
  <div class="card-title">Scan Label</div>
  <div style="display:flex;gap:0;margin-bottom:18px;border:1px solid var(--border2);border-radius:9px;overflow:hidden;width:fit-content">
@@ -410,7 +411,7 @@
  </div>
 
  <!-- INVENTORY -->
- <div id="page-inventory" class="page active">
+ <div id="page-inventory" class="page">
  <div class="card" style="margin-bottom:14px">
  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
  <div>
@@ -2694,169 +2695,7 @@ async function runBomCheck(mapping,rows){
     document.getElementById("bomStatus").className="status-bar "+(allOk?"ok":"warn");
   }catch(e){document.getElementById("bomStatus").innerHTML="Error: "+e.message;document.getElementById("bomStatus").className="status-bar err";}
 }
- async function fetchPriceUSD(pn, footprint='') {
-  const searchTerm = footprint ? `${pn} ${footprint}` : pn;
-  try {
-    if (cfg.mouserKey) {
-      const r = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ SearchByKeywordRequest: { keyword: searchTerm, records: 1, startingRecord: 0, searchOptions: 'InStock', searchWithSPNsFirst: 'N' } })
-      });
-      const d = await r.json();
-      const part = d?.SearchResults?.Parts?.[0];
-      if (part?.PriceBreaks?.length) {
-        return parseFloat((part.PriceBreaks[0].Price || '0').replace(/[^0-9.]/g, '')) || null;
-      }
-    }
-    if (cfg.dkClientId && cfg.dkSecret) {
-      const tokenResp = await fetch('https://api.digikey.com/v1/oauth2/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `grant_type=client_credentials&client_id=${encodeURIComponent(cfg.dkClientId)}&client_secret=${encodeURIComponent(cfg.dkSecret)}`
-      });
-      const { access_token } = await tokenResp.json();
-      if (access_token) {
-        const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${access_token}`, 'X-DIGIKEY-Client-Id': cfg.dkClientId, 'X-DIGIKEY-Locale-Site': 'US', 'X-DIGIKEY-Locale-Currency': 'USD', 'X-DIGIKEY-Locale-Language': 'en', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keywords: searchTerm, limit: 1, offset: 0 })
-        });
-        if (dkResp.ok) {
-          const dd = await dkResp.json();
-          const p = dd?.Products?.[0];
-          if (p) return p.UnitPrice || p.unitPrice || p.StandardPricing?.[0]?.UnitPrice || null;
-        }
-      }
-    }
-  } catch(e) { console.warn('Price fetch failed for', pn, e); }
-  return null;
-}
-    if (cfg.dkClientId && cfg.dkSecret) {
-      const tokenResp = await fetch('https://api.digikey.com/v1/oauth2/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `grant_type=client_credentials&client_id=${encodeURIComponent(cfg.dkClientId)}&client_secret=${encodeURIComponent(cfg.dkSecret)}`
-      });
-      const { access_token } = await tokenResp.json();
-      if (access_token) {
-        const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${access_token}`, 'X-DIGIKEY-Client-Id': cfg.dkClientId, 'X-DIGIKEY-Locale-Site': 'US', 'X-DIGIKEY-Locale-Currency': 'USD', 'X-DIGIKEY-Locale-Language': 'en', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keywords: pn, limit: 1, offset: 0 })
-        });
-        if (dkResp.ok) {
-          const dd = await dkResp.json();
-          const p = dd?.Products?.[0];
-          if (p) return p.UnitPrice || p.unitPrice || p.StandardPricing?.[0]?.UnitPrice || null;
-        }
-      }
-    }
-  } catch(e) { console.warn('Price fetch failed for', pn, e); }
-  return null;
-}async function fetchPriceUSD(pn) {
-  try {
-    if (cfg.mouserKey) {
-      const r = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ SearchByKeywordRequest: { keyword: pn, records: 1, startingRecord: 0, searchOptions: 'InStock', searchWithSPNsFirst: 'N' } })
-      });
-      const d = await r.json();
-      const part = d?.SearchResults?.Parts?.[0];
-      if (part?.PriceBreaks?.length) {
-        return parseFloat((part.PriceBreaks[0].Price || '0').replace(/[^0-9.]/g, '')) || null;
-      }
-    }
-    if (cfg.dkClientId && cfg.dkSecret) {
-      const tokenResp = await fetch('https://api.digikey.com/v1/oauth2/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `grant_type=client_credentials&client_id=${encodeURIComponent(cfg.dkClientId)}&client_secret=${encodeURIComponent(cfg.dkSecret)}`
-      });
-      const { access_token } = await tokenResp.json();
-      if (access_token) {
-        const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${access_token}`, 'X-DIGIKEY-Client-Id': cfg.dkClientId, 'X-DIGIKEY-Locale-Site': 'US', 'X-DIGIKEY-Locale-Currency': 'USD', 'X-DIGIKEY-Locale-Language': 'en', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keywords: pn, limit: 1, offset: 0 })
-        });
-        if (dkResp.ok) {
-          const dd = await dkResp.json();
-          const p = dd?.Products?.[0];
-          if (p) return p.UnitPrice || p.unitPrice || p.StandardPricing?.[0]?.UnitPrice || null;
-        }
-      }
-    }
-  } catch(e) { console.warn('Price fetch failed for', pn, e); }
-  return null;
-}
-async function exportBomReport() {
-  if (!_bomOriginalRows.length) { toast("No results to export."); return; }
-  const statusEl = document.getElementById("bomStatus");
-  statusEl.style.display = 'block';
-  statusEl.innerHTML = '<span class="spinner"></span>Fetching live prices for missing parts…';
-  statusEl.className = 'status-bar loading';
-  const USD_TO_SGD = 1.35;
-  const notFoundRows = _bomOriginalRows.filter(r => r.__status === "NOT IN INVENTORY" || r.__status === "NOT ENOUGH");
-  const priceMap = {};
- for (const row of notFoundRows) {
-    const mfrPn = (_bomOriginalMapping.MfrPN ? row[_bomOriginalMapping.MfrPN] : '') || '';
-    const comment = row['Comment'] || row['comment'] || row['COMMENT'] || '';
-    const footprint = (_bomOriginalMapping.Footprint ? row[_bomOriginalMapping.Footprint] : '') || row['Footprint'] || '';
-    // Prefer comment (e.g. "PMBT3904", "18pF") over LCSC-specific mfrPn
-    const searchPn = (comment && comment.length > 2 && !/^\d+(\.\d+)?(uF|nF|pF|kΩ|Ω|K|R|MHz|kHz)$/i.test(comment))
-      ? comment
-      : mfrPn;
-    const key = searchPn || mfrPn;
-    if (key && !priceMap[key]) {
-      priceMap[key] = await fetchPriceUSD(key, footprint);
-    }
-    row.__priceKey = key;
-  }
-  try {
-    const wb = XLSX.utils.book_new();
-    const exportHeaders = [..._bomOriginalHeaders,
-      "Stock Status", "Stock Available", "Qty Needed", "Shortage",
-      "Location", "Suggested Locations", "Price (SGD, unit)"
-    ];
-    const exportData = [exportHeaders];
-    _bomOriginalRows.forEach(row => {
-      const vals = _bomOriginalHeaders.map(h => row[h] || "");
-      if (row.__status !== undefined) {
-        let priceSGD = "";
-        if (row.__status === "NOT IN INVENTORY" || row.__status === "NOT ENOUGH") {
-          const usd = priceMap[row.__priceKey || ''];
-          if (usd) priceSGD = (usd * USD_TO_SGD).toFixed(4);
-          else if (!cfg.mouserKey && !cfg.dkClientId) priceSGD = "No API key";
-          else priceSGD = "Not found";
-        }
-        vals.push(
-          row.__status,
-          row.__stock,
-          row.__needed,
-          row.__shortage > 0 ? row.__shortage : "",
-          row.__location,
-          row.__recs ? row.__recs.join(', ') : '',
-          priceSGD
-        );
-      } else {
-        vals.push("", "", "", "", "", "", "");
-      }
-      exportData.push(vals);
-    });
-    const ws = XLSX.utils.aoa_to_sheet(exportData);
-    XLSX.utils.book_append_sheet(wb, ws, "BOM Check");
-    XLSX.writeFile(wb, "BOM_Check_" + todayStr() + ".xlsx");
-    toast("Report downloaded.");
-    statusEl.innerHTML = "Report exported with pricing.";
-    statusEl.className = "status-bar ok";
-  } catch(e) {
-    toast("Export failed: " + e.message);
-    statusEl.innerHTML = "Export failed: " + e.message;
-    statusEl.className = "status-bar err";
-  }
-}
+function exportBomReport(){if(!_bomOriginalRows.length){toast("No results to export.");return;}try{const wb=XLSX.utils.book_new();const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations"];const exportData=[exportHeaders];_bomOriginalRows.forEach(row=>{const vals=_bomOriginalHeaders.map(h=>row[h]||"");if(row.__status!==undefined){vals.push(row.__status,row.__stock,row.__needed,row.__shortage>0?row.__shortage:"",row.__location,row.__recs?row.__recs.join(', '):'');}else{vals.push("","","","","");}exportData.push(vals);});const ws=XLSX.utils.aoa_to_sheet(exportData);XLSX.utils.book_append_sheet(wb,ws,"BOM Check");XLSX.writeFile(wb,"BOM_Check_"+todayStr()+".xlsx");toast("Report downloaded.");}catch(e){toast("Export failed: "+e.message);}}
 async function confirmOrderDispatch(){const statusEl=document.getElementById("bomConfirmStatus");statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Deducting stock…';statusEl.className="status-bar loading";const today=todayStr();try{for(const item of bomPendingDispatch){const newQty=item.currentQty-item.qty;await sheetUpdate(item.rowIdx,newQty,today);await sheetAppendTx([today,item.pn,"Order Check","Use",item.qty,item.currentQty,newQty,"Order dispatch"]);}statusEl.innerHTML=`Stock deducted for ${bomPendingDispatch.length} parts.`;statusEl.className="status-bar ok";toast("Order dispatched.");bomPendingDispatch=[];document.getElementById("bomConfirmPanel").style.display="none";}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 function cancelOrderDispatch(){document.getElementById("bomConfirmPanel").style.display="none";bomPendingDispatch=[];}
 function downloadSampleCSV(){downloadFile("sample_order_bom.csv","text/csv","Part Number,Quantity,Description\nSN74LVC1G08DCKR,100,IC Gate AND\nGRM188R71H104KA93D,500,Cap 100nF 50V\n");}
@@ -3205,3 +3044,4 @@ function getBomRecommendations(bomRow, mapping, sheetRows) {
 </script>
 </body>
 </html>
+
