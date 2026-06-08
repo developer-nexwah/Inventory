@@ -2710,7 +2710,7 @@ function exportBomReport(){
   if(!_bomOriginalRows.length){toast("No results to export.");return;}
   try{
     const wb=XLSX.utils.book_new();
-    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Mouser SGD","DigiKey SGD","Best Price SGD","Mouser","DigiKey"];
+    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Best Price SGD","Order"];
     const exportData=[exportHeaders];
     _bomOriginalRows.forEach(row=>{
       const vals=_bomOriginalHeaders.map(h=>row[h]||"");
@@ -2723,33 +2723,28 @@ function exportBomReport(){
           row.__shortage>0?row.__shortage:"",
           row.__location,
           recsStr,
-          row.__mouserSgd != null ? row.__mouserSgd : "",
-          row.__dkSgd    != null ? row.__dkSgd    : "",
           row.__priceSgd != null ? row.__priceSgd : "",
-          row.__orderUrl ? (row.__dist || 'Order') : "",
-          ""  // DigiKey link placeholder — overwritten below
+          row.__orderUrl ? (row.__dist||"Order") : ""
         );
       } else {
-        vals.push("","","","","","","","","","","");
+        vals.push("","","","","","","","");
       }
       exportData.push(vals);
     });
     const ws=XLSX.utils.aoa_to_sheet(exportData);
 
-    // Inject clickable links — second-to-last = Mouser, last = DigiKey
-    const mouserColIdx = exportHeaders.length - 2;
-    const dkColIdx     = exportHeaders.length - 1;
+    // Order column = last col — clickable link showing distributor name
+    const orderColIdx = exportHeaders.length - 1;
+    const distColor = { Mouser:'15803D', DigiKey:'1D4ED8' };
     _bomOriginalRows.forEach((row, ri) => {
-      if (row.__status !== "NOT IN INVENTORY") return;
-      const r = ri + 1;
-      if (row.__mouserUrl) {
-        const mAddr = XLSX.utils.encode_cell({r, c: mouserColIdx});
-        ws[mAddr] = { t:'s', v:'Mouser', l:{ Target: row.__mouserUrl }, s:{ font:{ color:{rgb:'15803D'}, underline:true, bold:true } } };
-      }
-      if (row.__dkUrl) {
-        const dAddr = XLSX.utils.encode_cell({r, c: dkColIdx});
-        ws[dAddr] = { t:'s', v:'DigiKey', l:{ Target: row.__dkUrl }, s:{ font:{ color:{rgb:'1D4ED8'}, underline:true, bold:true } } };
-      }
+      if(!row.__orderUrl) return;
+      const cellAddr = XLSX.utils.encode_cell({r: ri+1, c: orderColIdx});
+      const color = distColor[row.__dist] || '1A56DB';
+      ws[cellAddr] = {
+        t:'s', v: row.__dist || 'Order',
+        l:{ Target: row.__orderUrl },
+        s:{ font:{ color:{rgb: color}, underline:true, bold:true } }
+      };
     });
 
     ws['!cols'] = exportHeaders.map((_,i) => ({
