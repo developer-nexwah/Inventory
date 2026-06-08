@@ -2710,13 +2710,12 @@ function exportBomReport(){
   if(!_bomOriginalRows.length){toast("No results to export.");return;}
   try{
     const wb=XLSX.utils.book_new();
-    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Best Price SGD","Best Distributor","Mouser SGD","DigiKey SGD","FX Rate (USD/SGD)","Order Now"];
+    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Mouser SGD","DigiKey SGD","Best Price SGD","Order Now"];
     const exportData=[exportHeaders];
     _bomOriginalRows.forEach(row=>{
       const vals=_bomOriginalHeaders.map(h=>row[h]||"");
       if(row.__status!==undefined){
         const recsStr=row.__recs?row.__recs.map(r=>typeof r==='object'?r.loc:r).join(', '):'';
-        const label = row.__orderUrl ? (row.__priceSgd != null ? 'Order @ '+(row.__dist||'Distributor') : 'Search @ '+(row.__dist||'Distributor')) : '';
         vals.push(
           row.__status,
           row.__stock,
@@ -2724,38 +2723,32 @@ function exportBomReport(){
           row.__shortage>0?row.__shortage:"",
           row.__location,
           recsStr,
-          row.__priceSgd != null ? row.__priceSgd : "",
-          row.__dist || "",
           row.__mouserSgd != null ? row.__mouserSgd : "",
           row.__dkSgd    != null ? row.__dkSgd    : "",
-          row.__fxRate   != null ? row.__fxRate   : "",
-          label
+          row.__priceSgd != null ? row.__priceSgd : "",
+          row.__orderUrl ? "Order Now" : ""
         );
       } else {
-        vals.push("","","","","","","","","","","","");
+        vals.push("","","","","","","","","","");
       }
       exportData.push(vals);
     });
     const ws=XLSX.utils.aoa_to_sheet(exportData);
 
-    // Inject clickable hyperlinks into the Order Now column (last col)
+    // Inject clickable "Order Now" hyperlink into last column
     const orderColIdx = exportHeaders.length - 1;
     _bomOriginalRows.forEach((row, ri) => {
       if(!row.__orderUrl) return;
-      const label = row.__priceSgd != null
-        ? 'Order @ ' + (row.__dist||'Distributor')
-        : 'Search @ ' + (row.__dist||'Distributor');
       const cellAddr = XLSX.utils.encode_cell({r: ri+1, c: orderColIdx});
       ws[cellAddr] = {
-        t: 's', v: label,
-        l: { Target: row.__orderUrl, Tooltip: 'Open ' + (row.__dist||'Distributor') },
-        s: { font: { color: { rgb: '1A56DB' }, underline: true } }
+        t: 's', v: 'Order Now',
+        l: { Target: row.__orderUrl },
+        s: { font: { color: { rgb: '1A56DB' }, underline: true, bold: true } }
       };
     });
 
-    // Column widths
     ws['!cols'] = exportHeaders.map((_,i) => ({
-      wch: i < _bomOriginalHeaders.length ? 18 : i === exportHeaders.length-1 ? 22 : 16
+      wch: i < _bomOriginalHeaders.length ? 18 : 16
     }));
 
     XLSX.utils.book_append_sheet(wb,ws,"BOM Check");
@@ -3046,7 +3039,7 @@ async function fetchBomPartPriceForExport(partNumber) {
         const priceUsd = priceRaw == null ? null : (currency === 'USD' ? priceRaw : +(priceRaw / rate).toFixed(6));
         results.push({ dist:'Mouser', priceUsd, priceSgd, url, stock });
       }
-    } catch(e) {}
+    } catch(e) { console.warn('Mouser price fetch failed:', e.message); }
   }
 
   // ── DIGIKEY ───────────────────────────────────────────────
@@ -3058,14 +3051,15 @@ async function fetchBomPartPriceForExport(partNumber) {
       });
       const tokenData = await tokenResp.json();
       const token = tokenData.access_token;
+      if (!token) { console.warn('DigiKey token failed:', tokenData); }
       if (token) {
         const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'X-DIGIKEY-Client-Id': cfg.dkClientId,
-            'X-DIGIKEY-Locale-Site': 'US',
-            'X-DIGIKEY-Locale-Currency': 'USD',
+            'X-DIGIKEY-Locale-Site': 'SG',
+            'X-DIGIKEY-Locale-Currency': 'SGD',
             'X-DIGIKEY-Locale-Language': 'en',
             'Content-Type': 'application/json'
           },
@@ -3080,15 +3074,16 @@ async function fetchBomPartPriceForExport(partNumber) {
           if (dkPart) {
             const pricing = dkPart.StandardPricing || dkPart.standardPricing || [];
             const prices = pricing.map(pb => pb.UnitPrice || pb.unitPrice || 0).filter(p => p > 0);
-            const minUsd = prices.length ? Math.min(...prices) : null;
+            const minRaw = prices.length ? Math.min(...prices) : null;
             const stock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? 0;
             const url = dkPart.ProductUrl || dkPart.productUrl
-              || `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
-            results.push({ dist:'DigiKey', priceUsd: minUsd, priceSgd: toSgd(minUsd), url, stock });
-          }
-        }
+              || `https://www.digikey.sg/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
+            // DigiKey SG returns SGD directly
+            results.push({ dist:'DigiKey', priceUsd: minRaw ? +(minRaw/rate).toFixed(6) : null, priceSgd: minRaw, url, stock });
+          } else { console.warn('DigiKey: no part found for', partNumber); }
+        } else { console.warn('DigiKey search failed:', dkResp.status, await dkResp.text().catch(()=>'')); }
       }
-    } catch(e) {}
+    } catch(e) { console.warn('DigiKey price fetch failed:', e.message); }
   }
 
   if (!results.length) return searchFallback;
