@@ -2683,9 +2683,13 @@ async function runBomCheck(mapping,rows){
       let fetched = 0;
       const fetchAll = notFoundItems.map(async (item) => {
         const result = await fetchBomPartPriceForExport(item.pn);
-        item._row.__price    = result.price;
-        item._row.__dist     = result.dist;
-        item._row.__orderUrl = result.url;
+        item._row.__priceSgd     = result.priceSgd;
+        item._row.__priceUsd     = result.priceUsd;
+        item._row.__dist         = result.dist;
+        item._row.__orderUrl     = result.url;
+        item._row.__mouserSgd    = result.mouserPriceSgd;
+        item._row.__dkSgd        = result.dkPriceSgd;
+        item._row.__fxRate       = result.rate;
         fetched++;
         if (priceStatusEl) priceStatusEl.innerHTML = `<span class="spinner"></span> Fetching prices… ${fetched}/${notFoundItems.length}`;
       });
@@ -2704,32 +2708,44 @@ function exportBomReport(){
   if(!_bomOriginalRows.length){toast("No results to export.");return;}
   try{
     const wb=XLSX.utils.book_new();
-    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Cheapest Price (USD)","Distributor","Order Now"];
+    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Best Price SGD","Best Distributor","Mouser SGD","DigiKey SGD","FX Rate (USD/SGD)","Order Now"];
     const exportData=[exportHeaders];
     _bomOriginalRows.forEach(row=>{
       const vals=_bomOriginalHeaders.map(h=>row[h]||"");
       if(row.__status!==undefined){
         const recsStr=row.__recs?row.__recs.map(r=>typeof r==='object'?r.loc:r).join(', '):'';
-        // Use placeholder for Order Now — we'll overwrite with hyperlink below
-        vals.push(row.__status,row.__stock,row.__needed,row.__shortage>0?row.__shortage:"",row.__location,recsStr,row.__price!=null?row.__price:"",row.__dist||"",row.__orderUrl?"Order @ "+(row.__dist||"Distributor"):"");
+        const label = row.__orderUrl ? (row.__priceSgd != null ? 'Order @ '+(row.__dist||'Distributor') : 'Search @ '+(row.__dist||'Distributor')) : '';
+        vals.push(
+          row.__status,
+          row.__stock,
+          row.__needed,
+          row.__shortage>0?row.__shortage:"",
+          row.__location,
+          recsStr,
+          row.__priceSgd != null ? row.__priceSgd : "",
+          row.__dist || "",
+          row.__mouserSgd != null ? row.__mouserSgd : "",
+          row.__dkSgd    != null ? row.__dkSgd    : "",
+          row.__fxRate   != null ? row.__fxRate   : "",
+          label
+        );
       } else {
-        vals.push("","","","","","","","","");
+        vals.push("","","","","","","","","","","","");
       }
       exportData.push(vals);
     });
     const ws=XLSX.utils.aoa_to_sheet(exportData);
 
-    // Inject clickable hyperlinks into the Order Now column
-    const orderColIdx = exportHeaders.length - 1; // last column
+    // Inject clickable hyperlinks into the Order Now column (last col)
+    const orderColIdx = exportHeaders.length - 1;
     _bomOriginalRows.forEach((row, ri) => {
       if(!row.__orderUrl) return;
-      const label = row.__price != null
+      const label = row.__priceSgd != null
         ? 'Order @ ' + (row.__dist||'Distributor')
         : 'Search @ ' + (row.__dist||'Distributor');
       const cellAddr = XLSX.utils.encode_cell({r: ri+1, c: orderColIdx});
       ws[cellAddr] = {
-        t: 's',
-        v: label,
+        t: 's', v: label,
         l: { Target: row.__orderUrl, Tooltip: 'Open ' + (row.__dist||'Distributor') },
         s: { font: { color: { rgb: '1A56DB' }, underline: true } }
       };
@@ -2979,82 +2995,116 @@ function openTrackModal(trackingNum){
 function closeTrackModal(){document.getElementById("trackModalOverlay").style.display="none";}
 
 // ── BOM PART PRICE FETCH (for export) ─────────────────────
+let _usdSgdRate = null;
+async function getUsdSgdRate() {
+  if (_usdSgdRate) return _usdSgdRate;
+  try {
+    const resp = await fetch('https://api.frankfurter.app/latest?from=USD&to=SGD');
+    const data = await resp.json();
+    _usdSgdRate = data?.rates?.SGD || 1.35;
+  } catch(e) { _usdSgdRate = 1.35; } // fallback fixed rate
+  return _usdSgdRate;
+}
+
 async function fetchBomPartPriceForExport(partNumber) {
   const searchFallback = {
-    price: null,
+    priceSgd: null, priceUsd: null,
+    mouserPriceSgd: null, dkPriceSgd: null,
     dist: 'Mouser',
     url: `https://www.mouser.com/Search/Refine?Keyword=${encodeURIComponent(partNumber)}`
   };
+
+  const rate = await getUsdSgdRate();
+  const toSgd = usd => usd != null ? Math.round(usd * rate * 10000) / 10000 : null;
+
   const results = [];
 
-  try {
-    if (cfg.mouserKey) {
-      try {
-        const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          // Removed searchOptions:'InStock' — get results even if out of stock
-          body: JSON.stringify({ SearchByKeywordRequest: { keyword: partNumber, records: 3, startingRecord: 0, searchWithSPNsFirst: 'N' } })
-        });
-        const mData = await mResp.json();
-        const mParts = mData?.SearchResults?.Parts || [];
-        // Prefer exact MPN match, fall back to first result
-        const mPart = mParts.find(p => (p.ManufacturerPartNumber||'').toUpperCase() === partNumber.toUpperCase()) || mParts[0];
-        if (mPart) {
-          const breaks = (mPart.PriceBreaks || []).map(pb => parseFloat((pb.Price||'0').replace(/[^0-9.]/g,'')));
-          const minPrice = breaks.filter(p=>p>0).reduce((a,b)=>Math.min(a,b), Infinity);
-          const stock = parseInt((mPart.Availability||'').replace(/[^0-9]/g,'')||'0');
-          const url = mPart.ProductDetailUrl
-            ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.com'+mPart.ProductDetailUrl)
-            : `https://www.mouser.com/Search/Refine?Keyword=${encodeURIComponent(partNumber)}`;
-          // Push even if out of stock — price is still useful for ordering
-          if (minPrice < Infinity) results.push({ dist:'Mouser', price:minPrice, url, stock });
-          else if (url) results.push({ dist:'Mouser', price:null, url, stock }); // at least give the link
-        }
-      } catch(e) {}
-    }
+  // ── MOUSER ────────────────────────────────────────────────
+  if (cfg.mouserKey) {
+    try {
+      const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ SearchByKeywordRequest: { keyword: partNumber, records: 3, startingRecord: 0, searchWithSPNsFirst: 'N' } })
+      });
+      const mData = await mResp.json();
+      const mParts = mData?.SearchResults?.Parts || [];
+      const mPart = mParts.find(p => (p.ManufacturerPartNumber||'').toUpperCase() === partNumber.toUpperCase()) || mParts[0];
+      if (mPart) {
+        const breaks = (mPart.PriceBreaks || []).map(pb => parseFloat((pb.Price||'0').replace(/[^0-9.]/g,'')));
+        const minUsd = breaks.filter(p=>p>0).reduce((a,b)=>Math.min(a,b), Infinity);
+        const stock = parseInt((mPart.Availability||'').replace(/[^0-9]/g,'')||'0');
+        const url = mPart.ProductDetailUrl
+          ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.com'+mPart.ProductDetailUrl)
+          : `https://www.mouser.com/Search/Refine?Keyword=${encodeURIComponent(partNumber)}`;
+        const priceUsd = minUsd < Infinity ? minUsd : null;
+        results.push({ dist:'Mouser', priceUsd, priceSgd: toSgd(priceUsd), url, stock });
+      }
+    } catch(e) {}
+  }
 
-    if (cfg.dkClientId && cfg.dkSecret) {
-      try {
-        const tokenResp = await fetch('https://api.digikey.com/v1/oauth2/token', {
-          method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `grant_type=client_credentials&client_id=${encodeURIComponent(cfg.dkClientId)}&client_secret=${encodeURIComponent(cfg.dkSecret)}`
+  // ── DIGIKEY ───────────────────────────────────────────────
+  if (cfg.dkClientId && cfg.dkSecret) {
+    try {
+      const tokenResp = await fetch('https://api.digikey.com/v1/oauth2/token', {
+        method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=client_credentials&client_id=${encodeURIComponent(cfg.dkClientId)}&client_secret=${encodeURIComponent(cfg.dkSecret)}`
+      });
+      const tokenData = await tokenResp.json();
+      const token = tokenData.access_token;
+      if (token) {
+        const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'X-DIGIKEY-Client-Id': cfg.dkClientId,
+            'X-DIGIKEY-Locale-Site': 'US',
+            'X-DIGIKEY-Locale-Currency': 'USD',
+            'X-DIGIKEY-Locale-Language': 'en',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ keywords: partNumber, limit: 10, offset: 0, requestedQuantity: 1 })
         });
-        const { access_token: token } = await tokenResp.json();
-        if (token) {
-          const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'X-DIGIKEY-Client-Id': cfg.dkClientId, 'X-DIGIKEY-Locale-Site': 'US', 'X-DIGIKEY-Locale-Currency': 'USD', 'X-DIGIKEY-Locale-Language': 'en', 'Content-Type': 'application/json' },
-            // Removed status filter — get all results including out-of-stock
-            body: JSON.stringify({ keywords: partNumber, limit: 10, offset: 0, requestedQuantity: 1 })
-          });
-          if (dkResp.ok) {
-            const dkData = await dkResp.json();
-            const products = dkData?.Products || dkData?.products || [];
-            const dkPart = products.find(p=>(p.ManufacturerProductNumber||p.manufacturerProductNumber||'').toUpperCase()===partNumber.toUpperCase()) || products[0];
-            if (dkPart) {
-              const pricing = dkPart.StandardPricing || dkPart.standardPricing || [];
-              const prices = pricing.map(pb=>pb.UnitPrice||pb.unitPrice||0).filter(p=>p>0);
-              const minPrice = prices.length ? Math.min(...prices) : null;
-              const stock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? 0;
-              const url = dkPart.ProductUrl || dkPart.productUrl || `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
-              if (minPrice) results.push({ dist:'DigiKey', price:minPrice, url, stock });
-              else if (url) results.push({ dist:'DigiKey', price:null, url, stock });
-            }
+        if (dkResp.ok) {
+          const dkData = await dkResp.json();
+          const products = dkData?.Products || dkData?.products || [];
+          const dkPart = products.find(p =>
+            (p.ManufacturerProductNumber||p.manufacturerProductNumber||'').toUpperCase() === partNumber.toUpperCase()
+          ) || products[0];
+          if (dkPart) {
+            const pricing = dkPart.StandardPricing || dkPart.standardPricing || [];
+            const prices = pricing.map(pb => pb.UnitPrice || pb.unitPrice || 0).filter(p => p > 0);
+            const minUsd = prices.length ? Math.min(...prices) : null;
+            const stock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? 0;
+            const url = dkPart.ProductUrl || dkPart.productUrl
+              || `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
+            results.push({ dist:'DigiKey', priceUsd: minUsd, priceSgd: toSgd(minUsd), url, stock });
           }
         }
-      } catch(e) {}
-    }
-  } catch(e) {}
+      }
+    } catch(e) {}
+  }
 
-  // Sort: results with a price first (cheapest), then results with just a link
-  const withPrice = results.filter(r => r.price != null).sort((a,b) => a.price - b.price);
-  const withLink  = results.filter(r => r.price == null);
-  const ranked = [...withPrice, ...withLink];
+  if (!results.length) return searchFallback;
 
-  if (ranked.length) return { price: ranked[0].price, dist: ranked[0].dist, url: ranked[0].url };
+  // Compare: cheapest SGD price wins; if no price, link-only results go last
+  const withPrice = results.filter(r => r.priceSgd != null).sort((a,b) => a.priceSgd - b.priceSgd);
+  const linkOnly  = results.filter(r => r.priceSgd == null);
+  const ranked    = [...withPrice, ...linkOnly];
+  const best      = ranked[0];
 
-  // No API keys or no result at all — return a generic Mouser search link
-  return searchFallback;
+  // Collect both prices for the export columns
+  const mouserRes = results.find(r => r.dist === 'Mouser');
+  const dkRes     = results.find(r => r.dist === 'DigiKey');
+
+  return {
+    priceSgd:      best.priceSgd,
+    priceUsd:      best.priceUsd,
+    dist:          best.dist,
+    url:           best.url,
+    mouserPriceSgd: mouserRes?.priceSgd ?? null,
+    dkPriceSgd:     dkRes?.priceSgd ?? null,
+    rate
+  };
 }
 
 // ── BOM PART PRICE FETCH (for UI DOM rendering) ────────────
