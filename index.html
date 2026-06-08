@@ -395,8 +395,9 @@
    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
      <div>
        <div style="font-size:14px;font-weight:600;color:var(--text)">Export Results</div>
+       <div id="bomPriceStatus" style="font-size:12px;color:var(--muted);margin-top:3px;font-family:var(--mono)"></div>
      </div>
-     <button class="btn btn-primary" onclick="exportBomReport()">Download Report (.xlsx)</button>
+     <button class="btn btn-primary" id="bomExportBtn" onclick="exportBomReport()">Download Report (.xlsx)</button>
    </div>
  </div>
  <div id="bomConfirmPanel" style="display:none" class="card">
@@ -2671,44 +2672,37 @@ async function runBomCheck(mapping,rows){
     const allOk=notFound===0&&notEnough===0;
     document.getElementById("bomResults").innerHTML=`<div class="card"><div class="card-title">Check Complete${setsUsed?' <span style="font-size:11px;color:var(--muted);font-weight:400">(qty × sets)</span>':''}</div><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="border-bottom:1px solid var(--border)"><th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">Status</th><th style="text-align:right;padding:8px 12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted)">Parts</th></tr></thead><tbody><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 12px;color:var(--text)">In Stock</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text)">${inStock}</td></tr><tr style="border-bottom:1px solid var(--border)"><td style="padding:9px 12px;color:var(--text)">Not Enough</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text)">${notEnough}</td></tr><tr><td style="padding:9px 12px;color:var(--text)">Not Found</td><td style="padding:9px 12px;text-align:right;font-family:var(--mono);font-weight:600;color:var(--text)">${notFound}</td></tr></tbody></table></div>`;
     if(bomPendingDispatch.length>0){document.getElementById("bomConfirmPanel").style.display="block";document.getElementById("bomConfirmSummary").innerHTML=`<b>${bomPendingDispatch.length}</b> part(s) can be deducted from stock:<br><span style="font-family:var(--mono);font-size:12px">${bomPendingDispatch.map(i=>`${i.pn} × ${i.qty}`).join("<br>")}</span>`;document.getElementById("bomConfirmStatus").style.display="none";}else{document.getElementById("bomConfirmPanel").style.display="none";}
-    // Show NOT IN INVENTORY items with live pricing - simple compact card
+    // Fetch live prices in background for NOT IN INVENTORY parts — store on row for export
     const notFoundItems = items.filter(i => i._row.__status === "NOT IN INVENTORY");
     if (notFoundItems.length > 0) {
-      const notFoundRows = notFoundItems.map((item, idx) => {
-        return `<tr id="bomrec_row_${idx}">
-          <td class="mono" style="font-size:12px;padding:10px 14px;font-weight:600">${escHtml(item.pn)}</td>
-          <td style="padding:10px 14px;color:var(--muted);font-size:12px">${escHtml(item._row[mapping.Description]||'—')}</td>
-          <td style="padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--error)">${item.qty}</td>
-          <td style="padding:10px 14px" id="bomrec_price_${idx}">
-            <span style="color:var(--muted);font-size:11px"><span class="spinner"></span> fetching…</span>
-          </td>
-          <td style="padding:10px 14px" id="bomrec_order_${idx}"></td>
-        </tr>`;
-      }).join('');
+      const priceStatusEl = document.getElementById("bomPriceStatus");
+      const exportBtn = document.getElementById("bomExportBtn");
+      if (priceStatusEl) priceStatusEl.innerHTML = `<span class="spinner"></span> Fetching live prices for ${notFoundItems.length} part(s)…`;
+      if (exportBtn) exportBtn.disabled = true;
 
-      document.getElementById("bomResults").innerHTML += `<div class="card" style="margin-top:14px">
-        <div class="card-title">Not In Inventory — Order These Parts</div>
-        <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Part Number</th>
-            <th>Description</th>
-            <th>Qty Needed</th>
-            <th style="min-width:140px">Cheapest Price</th>
-            <th style="min-width:120px">Order</th>
-          </tr></thead>
-          <tbody>${notFoundRows}</tbody>
-        </table></div></div>`;
+      let fetched = 0;
+      const fetchAll = notFoundItems.map(async (item) => {
+        const result = await fetchBomPartPriceForExport(item.pn);
+        item._row.__price    = result.price;
+        item._row.__dist     = result.dist;
+        item._row.__orderUrl = result.url;
+        fetched++;
+        if (priceStatusEl) priceStatusEl.innerHTML = `<span class="spinner"></span> Fetching prices… ${fetched}/${notFoundItems.length}`;
+      });
 
-      // Fire parallel price fetches
-      notFoundItems.forEach((item, idx) => fetchBomPartPrice(item.pn, idx));
+      Promise.all(fetchAll).then(() => {
+        if (priceStatusEl) priceStatusEl.innerHTML = `✓ Live prices fetched — included in export`;
+        if (exportBtn) exportBtn.disabled = false;
+      });
     }
     document.getElementById("bomExportPanel").style.display="block";
     document.getElementById("bomStatus").innerHTML=allOk?`All ${totalParts} parts available.`:`⚠ ${totalParts} parts checked — download report for full details.`;
     document.getElementById("bomStatus").className="status-bar "+(allOk?"ok":"warn");
   }catch(e){document.getElementById("bomStatus").innerHTML="Error: "+e.message;document.getElementById("bomStatus").className="status-bar err";}
 }
-function exportBomReport(){if(!_bomOriginalRows.length){toast("No results to export.");return;}try{const wb=XLSX.utils.book_new();const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations"];const exportData=[exportHeaders];_bomOriginalRows.forEach(row=>{const vals=_bomOriginalHeaders.map(h=>row[h]||"");if(row.__status!==undefined){const recsStr=row.__recs?row.__recs.map(r=>typeof r==='object'?r.loc:r).join(', '):'';vals.push(row.__status,row.__stock,row.__needed,row.__shortage>0?row.__shortage:"",row.__location,recsStr);}else{vals.push("","","","","");}exportData.push(vals);});const ws=XLSX.utils.aoa_to_sheet(exportData);XLSX.utils.book_append_sheet(wb,ws,"BOM Check");XLSX.writeFile(wb,"BOM_Check_"+todayStr()+".xlsx");toast("Report downloaded.");}catch(e){toast("Export failed: "+e.message);}}
+function exportBomReport(){if(!_bomOriginalRows.length){toast("No results to export.");return;}try{const wb=XLSX.utils.book_new();const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Cheapest Price (USD)","Distributor","Order URL"];const exportData=[exportHeaders];_bomOriginalRows.forEach(row=>{const vals=_bomOriginalHeaders.map(h=>row[h]||"");if(row.__status!==undefined){const recsStr=row.__recs?row.__recs.map(r=>typeof r==='object'?r.loc:r).join(', '):'';vals.push(row.__status,row.__stock,row.__needed,row.__shortage>0?row.__shortage:"",row.__location,recsStr,row.__price!=null?row.__price:"",row.__dist||"",row.__orderUrl||"");}else{vals.push("","","","","","","","","");}exportData.push(vals);});const ws=XLSX.utils.aoa_to_sheet(exportData);// Style the header row bold
+const range=XLSX.utils.decode_range(ws['!ref']);for(let C=range.s.c;C<=range.e.c;C++){const addr=XLSX.utils.encode_cell({r:0,c:C});if(!ws[addr])continue;ws[addr].s={font:{bold:true}};}// Set column widths
+ws['!cols']=[...Array(exportHeaders.length)].map((_,i)=>({wch:i<_bomOriginalHeaders.length?18:16}));XLSX.utils.book_append_sheet(wb,ws,"BOM Check");XLSX.writeFile(wb,"BOM_Check_"+todayStr()+".xlsx");toast("Report downloaded.");}catch(e){toast("Export failed: "+e.message);}}
 async function confirmOrderDispatch(){const statusEl=document.getElementById("bomConfirmStatus");statusEl.style.display="block";statusEl.innerHTML='<span class="spinner"></span>Deducting stock…';statusEl.className="status-bar loading";const today=todayStr();try{for(const item of bomPendingDispatch){const newQty=item.currentQty-item.qty;await sheetUpdate(item.rowIdx,newQty,today);await sheetAppendTx([today,item.pn,"Order Check","Use",item.qty,item.currentQty,newQty,"Order dispatch"]);}statusEl.innerHTML=`Stock deducted for ${bomPendingDispatch.length} parts.`;statusEl.className="status-bar ok";toast("Order dispatched.");bomPendingDispatch=[];document.getElementById("bomConfirmPanel").style.display="none";}catch(e){statusEl.innerHTML="Error: "+e.message;statusEl.className="status-bar err";}}
 function cancelOrderDispatch(){document.getElementById("bomConfirmPanel").style.display="none";bomPendingDispatch=[];}
 function downloadSampleCSV(){downloadFile("sample_order_bom.csv","text/csv","Part Number,Quantity,Description\nSN74LVC1G08DCKR,100,IC Gate AND\nGRM188R71H104KA93D,500,Cap 100nF 50V\n");}
@@ -2942,7 +2936,69 @@ function openTrackModal(trackingNum){
 }
 function closeTrackModal(){document.getElementById("trackModalOverlay").style.display="none";}
 
-// ── BOM PART PRICE FETCH ───────────────────────────────────
+// ── BOM PART PRICE FETCH (for export) ─────────────────────
+async function fetchBomPartPriceForExport(partNumber) {
+  const noResult = { price: null, dist: '', url: '' };
+  const results = [];
+
+  try {
+    if (cfg.mouserKey) {
+      try {
+        const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ SearchByKeywordRequest: { keyword: partNumber, records: 1, startingRecord: 0, searchOptions: 'InStock', searchWithSPNsFirst: 'N' } })
+        });
+        const mData = await mResp.json();
+        const mPart = (mData?.SearchResults?.Parts || [])[0];
+        if (mPart) {
+          const breaks = (mPart.PriceBreaks || []).map(pb => parseFloat((pb.Price||'0').replace(/[^0-9.]/g,'')));
+          const minPrice = breaks.filter(p=>p>0).reduce((a,b)=>Math.min(a,b), Infinity);
+          const stock = parseInt((mPart.Availability||'').replace(/[^0-9]/g,'')||'0');
+          const url = mPart.ProductDetailUrl
+            ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.com'+mPart.ProductDetailUrl)
+            : `https://www.mouser.com/Search/Refine?Keyword=${encodeURIComponent(partNumber)}`;
+          if (minPrice < Infinity && stock > 0) results.push({ dist:'Mouser', price:minPrice, url });
+        }
+      } catch(e) {}
+    }
+
+    if (cfg.dkClientId && cfg.dkSecret) {
+      try {
+        const tokenResp = await fetch('https://api.digikey.com/v1/oauth2/token', {
+          method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `grant_type=client_credentials&client_id=${encodeURIComponent(cfg.dkClientId)}&client_secret=${encodeURIComponent(cfg.dkSecret)}`
+        });
+        const { access_token: token } = await tokenResp.json();
+        if (token) {
+          const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'X-DIGIKEY-Client-Id': cfg.dkClientId, 'X-DIGIKEY-Locale-Site': 'US', 'X-DIGIKEY-Locale-Currency': 'USD', 'X-DIGIKEY-Locale-Language': 'en', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ keywords: partNumber, limit: 5, offset: 0, requestedQuantity: 1 })
+          });
+          if (dkResp.ok) {
+            const dkData = await dkResp.json();
+            const products = dkData?.Products || dkData?.products || [];
+            const dkPart = products.find(p=>(p.ManufacturerProductNumber||p.manufacturerProductNumber||'').toUpperCase()===partNumber.toUpperCase()) || products[0];
+            if (dkPart) {
+              const pricing = dkPart.StandardPricing || dkPart.standardPricing || [];
+              const prices = pricing.map(pb=>pb.UnitPrice||pb.unitPrice||0).filter(p=>p>0);
+              const minPrice = prices.length ? Math.min(...prices) : 0;
+              const stock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? 0;
+              const url = dkPart.ProductUrl || dkPart.productUrl || `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
+              if (minPrice > 0 && stock > 0) results.push({ dist:'DigiKey', price:minPrice, url });
+            }
+          }
+        }
+      } catch(e) {}
+    }
+  } catch(e) {}
+
+  if (!results.length) return noResult;
+  results.sort((a,b) => a.price - b.price);
+  return { price: results[0].price, dist: results[0].dist, url: results[0].url };
+}
+
+// ── BOM PART PRICE FETCH (for UI DOM rendering) ────────────
 async function fetchBomPartPrice(partNumber, idx) {
   const priceCell = document.getElementById(`bomrec_price_${idx}`);
   const orderCell = document.getElementById(`bomrec_order_${idx}`);
