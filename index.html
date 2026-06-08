@@ -2723,10 +2723,13 @@ function exportBomReport(){
     const orderColIdx = exportHeaders.length - 1; // last column
     _bomOriginalRows.forEach((row, ri) => {
       if(!row.__orderUrl) return;
+      const label = row.__price != null
+        ? 'Order @ ' + (row.__dist||'Distributor')
+        : 'Search @ ' + (row.__dist||'Distributor');
       const cellAddr = XLSX.utils.encode_cell({r: ri+1, c: orderColIdx});
       ws[cellAddr] = {
         t: 's',
-        v: 'Order @ ' + (row.__dist||'Distributor'),
+        v: label,
         l: { Target: row.__orderUrl, Tooltip: 'Open ' + (row.__dist||'Distributor') },
         s: { font: { color: { rgb: '1A56DB' }, underline: true } }
       };
@@ -2977,7 +2980,11 @@ function closeTrackModal(){document.getElementById("trackModalOverlay").style.di
 
 // ── BOM PART PRICE FETCH (for export) ─────────────────────
 async function fetchBomPartPriceForExport(partNumber) {
-  const noResult = { price: null, dist: '', url: '' };
+  const searchFallback = {
+    price: null,
+    dist: 'Mouser',
+    url: `https://www.mouser.com/Search/Refine?Keyword=${encodeURIComponent(partNumber)}`
+  };
   const results = [];
 
   try {
@@ -2985,10 +2992,13 @@ async function fetchBomPartPriceForExport(partNumber) {
       try {
         const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ SearchByKeywordRequest: { keyword: partNumber, records: 1, startingRecord: 0, searchOptions: 'InStock', searchWithSPNsFirst: 'N' } })
+          // Removed searchOptions:'InStock' — get results even if out of stock
+          body: JSON.stringify({ SearchByKeywordRequest: { keyword: partNumber, records: 3, startingRecord: 0, searchWithSPNsFirst: 'N' } })
         });
         const mData = await mResp.json();
-        const mPart = (mData?.SearchResults?.Parts || [])[0];
+        const mParts = mData?.SearchResults?.Parts || [];
+        // Prefer exact MPN match, fall back to first result
+        const mPart = mParts.find(p => (p.ManufacturerPartNumber||'').toUpperCase() === partNumber.toUpperCase()) || mParts[0];
         if (mPart) {
           const breaks = (mPart.PriceBreaks || []).map(pb => parseFloat((pb.Price||'0').replace(/[^0-9.]/g,'')));
           const minPrice = breaks.filter(p=>p>0).reduce((a,b)=>Math.min(a,b), Infinity);
@@ -2996,7 +3006,9 @@ async function fetchBomPartPriceForExport(partNumber) {
           const url = mPart.ProductDetailUrl
             ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.com'+mPart.ProductDetailUrl)
             : `https://www.mouser.com/Search/Refine?Keyword=${encodeURIComponent(partNumber)}`;
-          if (minPrice < Infinity && stock > 0) results.push({ dist:'Mouser', price:minPrice, url });
+          // Push even if out of stock — price is still useful for ordering
+          if (minPrice < Infinity) results.push({ dist:'Mouser', price:minPrice, url, stock });
+          else if (url) results.push({ dist:'Mouser', price:null, url, stock }); // at least give the link
         }
       } catch(e) {}
     }
@@ -3012,7 +3024,8 @@ async function fetchBomPartPriceForExport(partNumber) {
           const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'X-DIGIKEY-Client-Id': cfg.dkClientId, 'X-DIGIKEY-Locale-Site': 'US', 'X-DIGIKEY-Locale-Currency': 'USD', 'X-DIGIKEY-Locale-Language': 'en', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ keywords: partNumber, limit: 5, offset: 0, requestedQuantity: 1 })
+            // Removed status filter — get all results including out-of-stock
+            body: JSON.stringify({ keywords: partNumber, limit: 10, offset: 0, requestedQuantity: 1 })
           });
           if (dkResp.ok) {
             const dkData = await dkResp.json();
@@ -3021,10 +3034,11 @@ async function fetchBomPartPriceForExport(partNumber) {
             if (dkPart) {
               const pricing = dkPart.StandardPricing || dkPart.standardPricing || [];
               const prices = pricing.map(pb=>pb.UnitPrice||pb.unitPrice||0).filter(p=>p>0);
-              const minPrice = prices.length ? Math.min(...prices) : 0;
+              const minPrice = prices.length ? Math.min(...prices) : null;
               const stock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? 0;
               const url = dkPart.ProductUrl || dkPart.productUrl || `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
-              if (minPrice > 0 && stock > 0) results.push({ dist:'DigiKey', price:minPrice, url });
+              if (minPrice) results.push({ dist:'DigiKey', price:minPrice, url, stock });
+              else if (url) results.push({ dist:'DigiKey', price:null, url, stock });
             }
           }
         }
@@ -3032,9 +3046,15 @@ async function fetchBomPartPriceForExport(partNumber) {
     }
   } catch(e) {}
 
-  if (!results.length) return noResult;
-  results.sort((a,b) => a.price - b.price);
-  return { price: results[0].price, dist: results[0].dist, url: results[0].url };
+  // Sort: results with a price first (cheapest), then results with just a link
+  const withPrice = results.filter(r => r.price != null).sort((a,b) => a.price - b.price);
+  const withLink  = results.filter(r => r.price == null);
+  const ranked = [...withPrice, ...withLink];
+
+  if (ranked.length) return { price: ranked[0].price, dist: ranked[0].dist, url: ranked[0].url };
+
+  // No API keys or no result at all — return a generic Mouser search link
+  return searchFallback;
 }
 
 // ── BOM PART PRICE FETCH (for UI DOM rendering) ────────────
