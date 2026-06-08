@@ -1083,7 +1083,7 @@ async function searchMarketPrice() {
     if (mouserKey) {
       statusEl.innerHTML = '<span class="spinner"></span>Querying Mouser API…';
       try {
-        const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${mouserKey}`, {
+        const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${mouserKey}&countryCode=SG&languageCode=EN&currency=SGD`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify({ SearchByKeywordRequest: { keyword: partNumber, records: 1, startingRecord: 0, searchOptions: 'InStock', searchWithSPNsFirst: 'N' } })
@@ -1100,8 +1100,10 @@ async function searchMarketPrice() {
             qty: parseInt(pb.Quantity), price: parseFloat((pb.Price || '0').replace(/[^0-9.]/g,''))
           })).filter(pb => pb.qty > 0 && pb.price > 0);
           const mStock = parseInt((mPart.Availability || '').replace(/[^0-9]/g,'') || '0');
+          // Detect currency from response — SG key returns SGD
+          const mCurrency = (mPart.PriceBreaks?.[0]?.Currency || 'SGD').toUpperCase();
           results.distributors.push({
-            name: 'Mouser', stock: mStock, currency: 'USD', price_breaks: mBreaks,
+            name: 'Mouser', stock: mStock, currency: mCurrency, price_breaks: mBreaks,
             url: mPart.ProductDetailUrl ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.sg' + mPart.ProductDetailUrl) : distUrls.Mouser,
             in_stock: mStock > 0
           });
@@ -3022,7 +3024,8 @@ async function fetchBomPartPriceForExport(partNumber) {
   // ── MOUSER ────────────────────────────────────────────────
   if (cfg.mouserKey) {
     try {
-      const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}`, {
+      // Pass SG locale so API returns SGD prices and correct stock
+      const mResp = await fetch(`https://api.mouser.com/api/v1/search/keyword?apiKey=${cfg.mouserKey}&countryCode=SG&languageCode=EN&currency=SGD`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ SearchByKeywordRequest: { keyword: partNumber, records: 3, startingRecord: 0, searchWithSPNsFirst: 'N' } })
       });
@@ -3037,7 +3040,7 @@ async function fetchBomPartPriceForExport(partNumber) {
           ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.sg'+mPart.ProductDetailUrl)
           : `https://www.mouser.sg/c/?q=${encodeURIComponent(partNumber)}`;
         const priceRaw = minRaw < Infinity ? minRaw : null;
-        // Mouser SG API returns SGD prices — detect currency to avoid double-converting
+        // With currency=SGD param, prices come back in SGD directly — no FX conversion needed
         const currency = (mPart.PriceBreaks?.[0]?.Currency || 'SGD').toUpperCase();
         const priceSgd = priceRaw == null ? null : (currency === 'USD' ? toSgd(priceRaw) : priceRaw);
         const priceUsd = priceRaw == null ? null : (currency === 'USD' ? priceRaw : +(priceRaw / rate).toFixed(6));
