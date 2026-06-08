@@ -2708,7 +2708,7 @@ function exportBomReport(){
   if(!_bomOriginalRows.length){toast("No results to export.");return;}
   try{
     const wb=XLSX.utils.book_new();
-    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Mouser SGD","DigiKey SGD","Best Price SGD","Order Now"];
+    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Mouser SGD","DigiKey SGD","Best Price SGD","Order"];
     const exportData=[exportHeaders];
     _bomOriginalRows.forEach(row=>{
       const vals=_bomOriginalHeaders.map(h=>row[h]||"");
@@ -2724,7 +2724,7 @@ function exportBomReport(){
           row.__mouserSgd != null ? row.__mouserSgd : "",
           row.__dkSgd    != null ? row.__dkSgd    : "",
           row.__priceSgd != null ? row.__priceSgd : "",
-          row.__orderUrl ? "Order Now" : ""
+          row.__orderUrl ? (row.__dist || 'Order') : ""
         );
       } else {
         vals.push("","","","","","","","","","");
@@ -2739,7 +2739,7 @@ function exportBomReport(){
       if(!row.__orderUrl) return;
       const cellAddr = XLSX.utils.encode_cell({r: ri+1, c: orderColIdx});
       ws[cellAddr] = {
-        t: 's', v: 'Order Now',
+        t: 's', v: row.__dist || 'Order Now',
         l: { Target: row.__orderUrl },
         s: { font: { color: { rgb: '1A56DB' }, underline: true, bold: true } }
       };
