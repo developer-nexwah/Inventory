@@ -3051,15 +3051,15 @@ async function fetchBomPartPriceForExport(partNumber) {
       });
       const tokenData = await tokenResp.json();
       const token = tokenData.access_token;
-      if (!token) { console.warn('DigiKey token failed:', tokenData); }
+      if (!token) { console.warn('DigiKey token failed:', JSON.stringify(tokenData)); }
       if (token) {
         const dkResp = await fetch('https://api.digikey.com/products/v4/search/keyword', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'X-DIGIKEY-Client-Id': cfg.dkClientId,
-            'X-DIGIKEY-Locale-Site': 'SG',
-            'X-DIGIKEY-Locale-Currency': 'SGD',
+            'X-DIGIKEY-Locale-Site': 'US',
+            'X-DIGIKEY-Locale-Currency': 'USD',
             'X-DIGIKEY-Locale-Language': 'en',
             'Content-Type': 'application/json'
           },
@@ -3074,14 +3074,16 @@ async function fetchBomPartPriceForExport(partNumber) {
           if (dkPart) {
             const pricing = dkPart.StandardPricing || dkPart.standardPricing || [];
             const prices = pricing.map(pb => pb.UnitPrice || pb.unitPrice || 0).filter(p => p > 0);
-            const minRaw = prices.length ? Math.min(...prices) : null;
+            const minUsd = prices.length ? Math.min(...prices) : null;
             const stock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? 0;
             const url = dkPart.ProductUrl || dkPart.productUrl
-              || `https://www.digikey.sg/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
-            // DigiKey SG returns SGD directly
-            results.push({ dist:'DigiKey', priceUsd: minRaw ? +(minRaw/rate).toFixed(6) : null, priceSgd: minRaw, url, stock });
+              || `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
+            results.push({ dist:'DigiKey', priceUsd: minUsd, priceSgd: toSgd(minUsd), url, stock });
           } else { console.warn('DigiKey: no part found for', partNumber); }
-        } else { console.warn('DigiKey search failed:', dkResp.status, await dkResp.text().catch(()=>'')); }
+        } else {
+          const errText = await dkResp.text().catch(()=>'');
+          console.warn('DigiKey search failed:', dkResp.status, errText);
+        }
       }
     } catch(e) { console.warn('DigiKey price fetch failed:', e.message); }
   }
