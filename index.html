@@ -2690,6 +2690,8 @@ async function runBomCheck(mapping,rows){
         item._row.__orderUrl     = result.url;
         item._row.__mouserSgd    = result.mouserPriceSgd;
         item._row.__dkSgd        = result.dkPriceSgd;
+        item._row.__mouserUrl    = result.mouserUrl;
+        item._row.__dkUrl        = result.dkUrl;
         fetched++;
         if (priceStatusEl) priceStatusEl.innerHTML = `<span class="spinner"></span> Fetching prices… ${fetched}/${notFoundItems.length}`;
       });
@@ -2708,7 +2710,7 @@ function exportBomReport(){
   if(!_bomOriginalRows.length){toast("No results to export.");return;}
   try{
     const wb=XLSX.utils.book_new();
-    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Mouser SGD","DigiKey SGD","Best Price SGD","Order"];
+    const exportHeaders=[..._bomOriginalHeaders,"Stock Status","Stock Available","Qty Needed","Shortage","Location","Suggested Locations","Mouser SGD","DigiKey SGD","Best Price SGD","Mouser","DigiKey"];
     const exportData=[exportHeaders];
     _bomOriginalRows.forEach(row=>{
       const vals=_bomOriginalHeaders.map(h=>row[h]||"");
@@ -2724,25 +2726,30 @@ function exportBomReport(){
           row.__mouserSgd != null ? row.__mouserSgd : "",
           row.__dkSgd    != null ? row.__dkSgd    : "",
           row.__priceSgd != null ? row.__priceSgd : "",
-          row.__orderUrl ? (row.__dist || 'Order') : ""
+          row.__orderUrl ? (row.__dist || 'Order') : "",
+          ""  // DigiKey link placeholder — overwritten below
         );
       } else {
-        vals.push("","","","","","","","","","");
+        vals.push("","","","","","","","","","","");
       }
       exportData.push(vals);
     });
     const ws=XLSX.utils.aoa_to_sheet(exportData);
 
-    // Inject clickable "Order Now" hyperlink into last column
-    const orderColIdx = exportHeaders.length - 1;
+    // Inject clickable links — second-to-last = Mouser, last = DigiKey
+    const mouserColIdx = exportHeaders.length - 2;
+    const dkColIdx     = exportHeaders.length - 1;
     _bomOriginalRows.forEach((row, ri) => {
-      if(!row.__orderUrl) return;
-      const cellAddr = XLSX.utils.encode_cell({r: ri+1, c: orderColIdx});
-      ws[cellAddr] = {
-        t: 's', v: row.__dist || 'Order Now',
-        l: { Target: row.__orderUrl },
-        s: { font: { color: { rgb: '1A56DB' }, underline: true, bold: true } }
-      };
+      if (row.__status !== "NOT IN INVENTORY") return;
+      const r = ri + 1;
+      if (row.__mouserUrl) {
+        const mAddr = XLSX.utils.encode_cell({r, c: mouserColIdx});
+        ws[mAddr] = { t:'s', v:'Mouser', l:{ Target: row.__mouserUrl }, s:{ font:{ color:{rgb:'15803D'}, underline:true, bold:true } } };
+      }
+      if (row.__dkUrl) {
+        const dAddr = XLSX.utils.encode_cell({r, c: dkColIdx});
+        ws[dAddr] = { t:'s', v:'DigiKey', l:{ Target: row.__dkUrl }, s:{ font:{ color:{rgb:'1D4ED8'}, underline:true, bold:true } } };
+      }
     });
 
     ws['!cols'] = exportHeaders.map((_,i) => ({
@@ -3025,13 +3032,16 @@ async function fetchBomPartPriceForExport(partNumber) {
       const mParts = mData?.SearchResults?.Parts || [];
       const mPart = mParts.find(p => (p.ManufacturerPartNumber||'').toUpperCase() === partNumber.toUpperCase()) || mParts[0];
       if (mPart) {
-        const breaks = (mPart.PriceBreaks || []).map(pb => parseFloat((pb.Price||'0').replace(/[^0-9.]/g,'')));
-        const minRaw = breaks.filter(p=>p>0).reduce((a,b)=>Math.min(a,b), Infinity);
+        const breaks = (mPart.PriceBreaks || [])
+          .map(pb => ({ qty: parseInt(pb.Quantity||'1'), price: parseFloat((pb.Price||'0').replace(/[^0-9.]/g,'')) }))
+          .filter(pb => pb.price > 0)
+          .sort((a,b) => a.qty - b.qty); // sort ascending by qty
+        // Use price at qty 1 = first break (lowest qty = highest unit price)
+        const priceSgd = breaks.length ? breaks[0].price : null;
         const stock = parseInt((mPart.Availability||'').replace(/[^0-9]/g,'')||'0');
         const url = mPart.ProductDetailUrl
           ? (mPart.ProductDetailUrl.startsWith('http') ? mPart.ProductDetailUrl : 'https://www.mouser.sg'+mPart.ProductDetailUrl)
           : `https://www.mouser.sg/c/?q=${encodeURIComponent(partNumber)}`;
-        const priceSgd = minRaw < Infinity ? minRaw : null;
         results.push({ dist:'Mouser', priceSgd, url, stock });
       }
     } catch(e) { console.warn('Mouser price fetch failed:', e.message); }
@@ -3077,14 +3087,17 @@ async function fetchBomPartPriceForExport(partNumber) {
         if (dkPart) {
           const pricing = dkPart.StandardPricing || dkPart.standardPricing ||
             (dkPart.UnitPrice ? [{ BreakQuantity:1, UnitPrice: dkPart.UnitPrice }] : []);
-          const prices = pricing.map(pb => pb.UnitPrice || pb.unitPrice || 0).filter(p => p > 0);
-          const minUsd = prices.length ? Math.min(...prices) : null;
+          const breaks = pricing
+            .map(pb => ({ qty: pb.BreakQuantity || pb.breakQuantity || 1, price: pb.UnitPrice || pb.unitPrice || 0 }))
+            .filter(pb => pb.price > 0)
+            .sort((a,b) => a.qty - b.qty); // ascending by qty
+          // Use qty-1 price = first break
+          const priceUsd = breaks.length ? breaks[0].price : null;
           const stock = dkPart.QuantityAvailable ?? dkPart.quantityAvailable ?? 0;
           const url = dkPart.ProductUrl || dkPart.productUrl
             || `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`;
-          // DigiKey returns USD — convert to SGD using live rate
           const rate = await getUsdSgdRate();
-          const priceSgd = minUsd != null ? Math.round(minUsd * rate * 10000) / 10000 : null;
+          const priceSgd = priceUsd != null ? Math.round(priceUsd * rate * 10000) / 10000 : null;
           results.push({ dist:'DigiKey', priceSgd, url, stock });
         }
       }
@@ -3093,17 +3106,25 @@ async function fetchBomPartPriceForExport(partNumber) {
 
   if (!results.length) return searchFallback;
 
+  // Best = cheapest among those with a price; fall back to first result with a URL
   const withPrice = results.filter(r => r.priceSgd != null).sort((a,b) => a.priceSgd - b.priceSgd);
-  const best = withPrice[0] || results[0];
+  const best = withPrice[0] || results.find(r => r.url) || results[0];
+
   const mouserRes = results.find(r => r.dist === 'Mouser');
   const dkRes     = results.find(r => r.dist === 'DigiKey');
 
+  // For order link: prefer the cheapest-priced distributor; if no prices, use Mouser
+  const orderDist = withPrice[0]?.dist || mouserRes?.dist || best.dist;
+  const orderUrl  = withPrice[0]?.url  || mouserRes?.url  || best.url;
+
   return {
     priceSgd:       best.priceSgd,
-    dist:           best.dist,
-    url:            best.url,
+    dist:           orderDist,
+    url:            orderUrl,
     mouserPriceSgd: mouserRes?.priceSgd ?? null,
     dkPriceSgd:     dkRes?.priceSgd ?? null,
+    mouserUrl:      mouserRes?.url ?? `https://www.mouser.sg/c/?q=${encodeURIComponent(partNumber)}`,
+    dkUrl:          dkRes?.url ?? `https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}`,
   };
 }
 
