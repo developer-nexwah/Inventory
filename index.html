@@ -1912,6 +1912,7 @@ function syncLocSlotsFromSheet(rows) {
 async function sheetAppend(row) {
   const resp = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
+    redirect: 'follow',    
     headers: {'Content-Type': 'text/plain;charset=utf-8'},
     body: JSON.stringify({
       action: 'append',
@@ -1938,6 +1939,7 @@ async function sheetUpdateRowSerial(rowIndex, rowSerial) {
 async function sheetAppendTx(row) {
   await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
+      redirect: 'follow', 
     headers: {'Content-Type': 'text/plain;charset=utf-8'},
     body: JSON.stringify({
       action: 'append',
