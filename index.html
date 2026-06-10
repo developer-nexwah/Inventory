@@ -1910,8 +1910,18 @@ function syncLocSlotsFromSheet(rows) {
   Object.keys(locSlots).forEach(k => locSlots[k].sort((a,b)=>a-b));
 }
 async function sheetAppend(row) {
-  const url=`${APPS_SCRIPT_URL}?action=append&sheet=${encodeURIComponent(cfg.sheetName||"Sheet1")}&row=${encodeURIComponent(JSON.stringify(row))}`;
-  const resp=await fetch(url); return await resp.text();
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({
+      action: 'append',
+      sheet: cfg.sheetName || 'Sheet1',
+      row: row
+    })
+  });
+  const text = await resp.text();
+  try { const j = JSON.parse(text); return j.ok ? 'ok' : text; }
+  catch(e) { return text; }
 }
 async function sheetUpdate(rowIndex,qty,date) {
   const url=`${APPS_SCRIPT_URL}?action=update&sheet=${encodeURIComponent(cfg.sheetName||"Sheet1")}&rowIndex=${rowIndex}&qty=${qty}&date=${encodeURIComponent(date)}`;
