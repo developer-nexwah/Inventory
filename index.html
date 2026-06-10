@@ -1913,7 +1913,7 @@ async function sheetAppend(row) {
   const resp = await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     redirect: 'follow',    
-    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+   headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       action: 'append',
       sheet: cfg.sheetName || 'Sheet1',
@@ -1940,7 +1940,7 @@ async function sheetAppendTx(row) {
   await fetch(APPS_SCRIPT_URL, {
     method: 'POST',
       redirect: 'follow', 
-    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+   headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       action: 'append',
       sheet: 'Transactions',
