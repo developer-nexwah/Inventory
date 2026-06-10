@@ -1936,8 +1936,16 @@ async function sheetUpdateRowSerial(rowIndex, rowSerial) {
   const resp=await fetch(url); return await resp.text();
 }
 async function sheetAppendTx(row) {
-  const url=`${APPS_SCRIPT_URL}?action=append&sheet=Transactions&row=${encodeURIComponent(JSON.stringify(row))}`;
-  await fetch(url);
+  await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({
+      action: 'append',
+      sheet: 'Transactions',
+      row: row
+    })
+  });
+}
 }
 
 // ── INVENTORY ──────────────────────────────────────────────
