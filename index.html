@@ -606,9 +606,9 @@
 
  <!-- Anthropic -->
  <div style="margin-bottom:22px">
- <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Anthropic API Key <span style="font-size:11px;color:var(--muted);font-weight:400">(Claude Vision label scanning)</span></div>
+ <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">AI API Key <span style="font-size:11px;color:var(--muted);font-weight:400">(MiniMax label scanning)</span></div>
  <div id="apiKeyStatus" style="margin-bottom:10px"></div>
- <div class="field" style="max-width:500px"><label>API Key</label><input type="password" id="settingsApiKey" placeholder="sk-ant-api03-..." style="font-family:var(--mono);font-size:13px" /></div>
+ <div class="field" style="max-width:500px"><label>API Key</label><input type="password" id="settingsApiKey" placeholder="sk-..." style="font-family:var(--mono);font-size:13px" /></div>
  <div class="btn-row">
  <button class="btn btn-primary" onclick="saveSettingsKey()">Save Key</button>
  <button class="btn btn-danger" onclick="removeSettingsKey()">Remove Key</button>
@@ -860,15 +860,15 @@
 <div id="keyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center">
  <div style="background:#fff;border-radius:14px;padding:32px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
  <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--accent);margin-bottom:8px">NEXWAH / Inventory</div>
- <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">Enter your Anthropic API key to enable label scanning.<br>It will be saved in this browser.</div>
+ <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">Enter your MiniMax API key to enable label scanning.<br>It will be saved in this browser.</div>
  <div style="margin-bottom:14px">
- <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:5px">Anthropic API Key</div>
- <input type="password" id="modalKeyInput" placeholder="sk-ant-..." style="width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--mono);font-size:13px;outline:none;" onkeydown="if(event.key==='Enter') saveModalKey()" />
+ <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:5px">MiniMax API Key</div>
+ <input type="password" id="modalKeyInput" placeholder="sk-..." style="width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--mono);font-size:13px;outline:none;" onkeydown="if(event.key==='Enter') saveModalKey()" />
  </div>
  <button onclick="saveModalKey()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:11px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--sans)">Save &amp; Continue</button>
  <button onclick="skipApiKey()" style="width:100%;background:transparent;color:var(--muted);border:1px solid var(--border2);padding:10px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--sans);margin-top:8px">Skip &mdash; Use Free OCR (Tesseract)</button>
- <div id="modalError" style="color:var(--error);font-size:12px;margin-top:10px;display:none">Key should start with sk-ant- &mdash; please check and try again.</div>
- <div style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center">Get your key at <a href="https://console.anthropic.com/keys" target="_blank" style="color:var(--accent)">console.anthropic.com/keys</a></div>
+ <div id="modalError" style="color:var(--error);font-size:12px;margin-top:10px;display:none">Key should start with sk- — please check and try again.</div>
+ <div style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center">Get your key from your supervisor</div>
  </div>
 </div>
 
@@ -1856,7 +1856,7 @@ function skipApiKey() {
 function showKeyModal() { document.getElementById("keyModal").style.display="flex"; setTimeout(()=>document.getElementById("modalKeyInput").focus(),100); }
 function saveModalKey() {
  const val=document.getElementById("modalKeyInput").value.trim();
- if (!val.startsWith("sk-ant-")) { document.getElementById("modalError").style.display="block"; return; }
+ if (!val.startsWith("sk-")) { document.getElementById("modalError").style.display="block"; return; }
  cfg.anthropicKey=val; localStorage.setItem("nexwah_anthropic_key",val);
  document.getElementById("keyModal").style.display="none";
  document.getElementById("topbarStatus").textContent = "Ready";
@@ -2598,7 +2598,7 @@ function loadSettingsPage() {
   const hasKey=!!cfg.anthropicKey;
   const keyInput=document.getElementById("settingsApiKey"), keyStatusEl=document.getElementById("apiKeyStatus"), statusEl=document.getElementById("settingsStatus");
   if (keyInput) keyInput.value=hasKey?cfg.anthropicKey:"";
-  if (keyStatusEl) keyStatusEl.innerHTML=hasKey?`<div class="alert alert-success">API key saved. Claude Vision scanning enabled.</div>`:`<div class="alert alert-warn">No API key set. Using free OCR (Google Vision &#x2192; Tesseract fallback).</div>`;
+  if (keyStatusEl) keyStatusEl.innerHTML=hasKey?`<div class="alert alert-success">API key saved. MiniMax label scanning enabled.</div>`:`<div class="alert alert-warn">No API key set. Using free OCR (Google Vision &#x2192; Tesseract fallback).</div>`;
   // Populate distributor key fields
   const mki=document.getElementById("settingsMouserKey"); if(mki) mki.value=cfg.mouserKey||"";
   const dki=document.getElementById("settingsDkClientId"); if(dki) dki.value=cfg.dkClientId||"";
@@ -2613,9 +2613,9 @@ function loadSettingsPage() {
   }
   setBadge("mouserKeyBadge", !!cfg.mouserKey);
   setBadge("digikeyKeyBadge", !!(cfg.dkClientId && cfg.dkSecret));
-  if (statusEl) statusEl.innerHTML=`Anthropic Key: <b>${hasKey?"Saved":"Not set"}</b><br>Mouser API: <b>${cfg.mouserKey?"Saved":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Saved":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
+  if (statusEl) statusEl.innerHTML=`AI Key: <b>${hasKey?"Saved":"Not set"}</b><br>Mouser API: <b>${cfg.mouserKey?"Saved":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Saved":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
 }
-function saveSettingsKey(){const val=document.getElementById("settingsApiKey").value.trim();const msgEl=document.getElementById("settingsKeyMsg");if(!val.startsWith("sk-ant-")){msgEl.style.display="block";msgEl.innerHTML="Key must start with sk-ant-";msgEl.className="status-bar err";return;}cfg.anthropicKey=val;localStorage.setItem("nexwah_anthropic_key",val);msgEl.style.display="block";msgEl.innerHTML="Key saved.";msgEl.className="status-bar ok";toast("API key saved.");loadSettingsPage();}
+function saveSettingsKey(){const val=document.getElementById("settingsApiKey").value.trim();const msgEl=document.getElementById("settingsKeyMsg");if(!val.startsWith("sk-")){msgEl.style.display="block";msgEl.innerHTML="Key must start with sk-";msgEl.className="status-bar err";return;}cfg.anthropicKey=val;localStorage.setItem("nexwah_anthropic_key",val);msgEl.style.display="block";msgEl.innerHTML="Key saved.";msgEl.className="status-bar ok";toast("API key saved.");loadSettingsPage();}
 function removeSettingsKey(){cfg.anthropicKey="";localStorage.removeItem("nexwah_anthropic_key");document.getElementById("settingsApiKey").value="";const msgEl=document.getElementById("settingsKeyMsg");msgEl.style.display="block";msgEl.innerHTML="Key removed.";msgEl.className="status-bar warn";toast("API key removed.");loadSettingsPage();}
 function saveDistKey(dist) {
   const msgEl=document.getElementById("distKeyMsg"); msgEl.style.display="block";
