@@ -793,7 +793,7 @@
 </div>
 
 <!-- API KEY MODAL -->
-<!-- keyModal removed — label scanning handled via Apps Script/Kimi Vision -->
+<!-- keyModal removed — label scanning handled via Apps Script/Claude Vision -->
 
 <!-- PRINT LABEL MODAL -->
 <div id="printModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center">
@@ -1775,7 +1775,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }).catch(() => {});
 })
 
-function skipApiKey() { document.getElementById("topbarStatus").textContent = "Ready"; toast("Using Kimi Vision via server for scanning."); }
+function skipApiKey() { document.getElementById("topbarStatus").textContent = "Ready"; toast("Using Claude Vision via server for scanning."); }
 function showKeyModal() { toast("Label scanning handled via server — no key needed."); }
 function saveModalKey() {}
 
@@ -2283,8 +2283,8 @@ function extractMPNs(ocrText){const cleaned=ocrText.replace(/[^\x20-\x7E\n]/g,' 
 
 async function extractWithClaude(dataUrl){
  setCamStatus('<span class="spinner"></span>Reading label with Claude Vision…',"loading");
- try{const result=await tryClaudeVision(dataUrl);if(result){await handleScanResult(result,dataUrl,"Kimi Vision");return;}}
- catch(err){setCamStatus('<span class="spinner"></span>Kimi Vision unavailable — trying Google Vision…',"warn");await new Promise(r=>setTimeout(r,600));}
+ try{const result=await tryClaudeVision(dataUrl);if(result){await handleScanResult(result,dataUrl,"Claude Vision");return;}}
+ catch(err){setCamStatus('<span class="spinner"></span>Claude Vision unavailable — trying Google Vision…',"warn");await new Promise(r=>setTimeout(r,600));}
  setCamStatus('<span class="spinner"></span>Trying Google Vision…',"loading");
  try{const result=await tryGoogleVision(dataUrl);if(result){await handleScanResult(result,dataUrl,"Google Vision");return;}}
  catch(err){setCamStatus('<span class="spinner"></span>Google Vision unavailable — trying Tesseract…',"warn");await new Promise(r=>setTimeout(r,600));}
@@ -2546,7 +2546,7 @@ function loadSettingsPage() {
   }
   setBadge("mouserKeyBadge", !!cfg.mouserKey);
   setBadge("digikeyKeyBadge", !!(cfg.dkClientId && cfg.dkSecret));
-  if (statusEl) statusEl.innerHTML=`Label Scanning: <b>Kimi Vision (server)</b><br>Mouser API: <b>${cfg.mouserKey?"Saved":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Saved":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
+  if (statusEl) statusEl.innerHTML=`Label Scanning: <b>Claude Vision (server)</b><br>Mouser API: <b>${cfg.mouserKey?"Saved":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Saved":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
 }
 function saveSettingsKey(){}
 function removeSettingsKey(){}
