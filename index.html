@@ -288,7 +288,6 @@
  <button class="nav-btn" onclick="showPage('marketprice',this)">Market Price</button>
  <button class="nav-btn" onclick="showPage('scanhistory',this)">Scan History</button>
  <button class="nav-btn" onclick="showPage('projects',this)">Projects</button>
- <button class="nav-btn" onclick="showPage('settings',this)">Settings</button>
 </div>
 
 <div class="page-wrap">
@@ -500,8 +499,7 @@
 
      <!-- No API key warning -->
      <div id="mpNoKeyWarn" class="alert alert-info" style="display:none">
-       No distributor API keys set. Go to <b>Settings</b> to add your Mouser and/or DigiKey API keys for live pricing.<br>
-       <span style="font-size:11px">Keys are saved in your browser — always use this app from the same URL (GitHub Pages) so they persist.</span>
+       Distributor API keys not configured.
      </div>
 
      <!-- Search row -->
@@ -599,68 +597,6 @@
  <div id="scanHistoryLoading" class="card"><div class="empty-state"><span class="spinner"></span> Loading scan history&hellip;</div></div>
  </div>
 
- <!-- SETTINGS -->
- <div id="page-settings" class="page">
- <div class="card">
- <div class="card-title">Settings</div>
-
- <!-- Anthropic -->
- <div style="margin-bottom:22px">
- <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">Anthropic API Key <span style="font-size:11px;color:var(--muted);font-weight:400">(Claude Vision label scanning)</span></div>
- <div id="apiKeyStatus" style="margin-bottom:10px"></div>
- <div class="field" style="max-width:500px"><label>API Key</label><input type="password" id="settingsApiKey" placeholder="sk-ant-api03-..." style="font-family:var(--mono);font-size:13px" /></div>
- <div class="btn-row">
- <button class="btn btn-primary" onclick="saveSettingsKey()">Save Key</button>
- <button class="btn btn-danger" onclick="removeSettingsKey()">Remove Key</button>
- </div>
- <div id="settingsKeyMsg" class="status-bar" style="margin-top:10px;display:none"></div>
- </div>
-
- <!-- Distributor API Keys -->
- <div style="border-top:1px solid var(--border);padding-top:18px;margin-bottom:22px">
- <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:16px">Market Price — Distributor API Keys</div>
-
- <div style="display:flex;flex-direction:column;gap:14px;max-width:540px">
-   <!-- Mouser -->
-   <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
-     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-       <div style="font-size:13px;font-weight:600;color:var(--text)">Mouser</div>
-       <div id="mouserKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
-     </div>
-     <div class="field"><label>API Key</label><input type="password" id="settingsMouserKey" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="font-family:var(--mono);font-size:12px" /></div>
-     <div class="btn-row" style="margin-top:10px">
-       <button class="btn btn-primary btn-sm" onclick="saveDistKey('mouser')">Save</button>
-       <button class="btn btn-danger btn-sm" onclick="removeDistKey('mouser')">Remove</button>
-     </div>
-   </div>
-
-   <!-- DigiKey -->
-   <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
-     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
-       <div style="font-size:13px;font-weight:600;color:var(--text)">DigiKey</div>
-       <div id="digikeyKeyBadge" style="font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono)">not set</div>
-     </div>
-     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-       <div class="field"><label>Client ID</label><input type="password" id="settingsDkClientId" placeholder="Client ID" style="font-family:var(--mono);font-size:12px" /></div>
-       <div class="field"><label>Client Secret</label><input type="password" id="settingsDkSecret" placeholder="Client Secret" style="font-family:var(--mono);font-size:12px" /></div>
-     </div>
-     <div class="btn-row" style="margin-top:10px">
-       <button class="btn btn-primary btn-sm" onclick="saveDistKey('digikey')">Save</button>
-       <button class="btn btn-danger btn-sm" onclick="removeDistKey('digikey')">Remove</button>
-     </div>
-   </div>
-
-
- </div>
- <div id="distKeyMsg" class="status-bar" style="margin-top:12px;display:none"></div>
- </div>
-
- <div style="border-top:1px solid var(--border);padding-top:18px">
- <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:12px">Current Status</div>
- <div id="settingsStatus" style="font-size:13px;color:var(--muted);line-height:2"></div>
- </div>
- </div>
- </div>
 </div>
 
 <!-- INVENTORY DETAIL DRAWER -->
@@ -857,20 +793,7 @@
 </div>
 
 <!-- API KEY MODAL -->
-<div id="keyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center">
- <div style="background:#fff;border-radius:14px;padding:32px;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
- <div style="font-family:var(--mono);font-size:18px;font-weight:500;color:var(--accent);margin-bottom:8px">NEXWAH / Inventory</div>
- <div style="font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6">Enter your Anthropic API key to enable label scanning.<br>It will be saved in this browser.</div>
- <div style="margin-bottom:14px">
- <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:5px">Anthropic API Key</div>
- <input type="password" id="modalKeyInput" placeholder="sk-ant-api03-..." style="width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:8px;font-family:var(--mono);font-size:13px;outline:none;" onkeydown="if(event.key==='Enter') saveModalKey()" />
- </div>
- <button onclick="saveModalKey()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:11px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--sans)">Save &amp; Continue</button>
- <button onclick="skipApiKey()" style="width:100%;background:transparent;color:var(--muted);border:1px solid var(--border2);padding:10px;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--sans);margin-top:8px">Skip &mdash; Use Free OCR (Tesseract)</button>
- <div id="modalError" style="color:var(--error);font-size:12px;margin-top:10px;display:none">Key should start with sk-ant- — please check and try again.</div>
- <div style="font-size:11px;color:var(--muted);margin-top:14px;text-align:center">Get your key at <a href="https://console.anthropic.com/keys" target="_blank" style="color:var(--accent)">console.anthropic.com/keys</a></div>
- </div>
-</div>
+<!-- keyModal removed — label scanning handled via Apps Script/Kimi Vision -->
 
 <!-- PRINT LABEL MODAL -->
 <div id="printModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center">
@@ -1018,7 +941,7 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfw6qOsjA0wiKn
 const SCAN_HISTORY_SHEET = "ScanHistory";
 const MAX_IMAGE_SIZE = 600;
 
-let cfg = { sheetName: "Sheet1", anthropicKey: "", mouserKey: "", dkClientId: "", dkSecret: "" };
+let cfg = { sheetName: "Sheet1", mouserKey: "", dkClientId: "", dkSecret: "" };
 let currentStream = null;
 let currentScan = null;
 const SCAN_REGION = { x: 0.10, y: 0.15, w: 0.80, h: 0.70 };
@@ -1273,7 +1196,7 @@ function renderMpDistCards(data) {
     const stockStr = dist.noApi
       ? 'No public API'
       : dist.noKey
-        ? 'Set API key in Settings'
+        ? 'API key not configured'
         : dist.stock === null || dist.stock === undefined
           ? 'Stock unknown'
           : dist.stock === 0
@@ -1295,7 +1218,7 @@ function renderMpDistCards(data) {
 
     let statusNote = '';
     if (dist.noApi) statusNote = '<div style="font-size:11px;color:var(--muted);margin-top:4px">No public API</div>';
-    else if (dist.noKey) statusNote = '<div style="font-size:11px;color:var(--warn);margin-top:4px">API key not set — go to Settings</div>';
+    else if (dist.noKey) statusNote = '<div style="font-size:11px;color:var(--warn);margin-top:4px">API key not configured</div>';
     else if (dist.error) statusNote = `<div style="font-size:11px;color:var(--error);margin-top:4px">${escHtml(dist.error)}</div>`;
     const linkHtml = dist.url
       ? `<a href="${escHtml(dist.url)}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm mp-dist-link">View ↗</a>`
@@ -1833,35 +1756,28 @@ function confirmColMapping() {
 }
 
 // ── INIT ───────────────────────────────────────────────────
-window.addEventListener("DOMContentLoaded", () => {
- cfg.anthropicKey = localStorage.getItem("nexwah_anthropic_key") || "";
-  cfg.mouserKey    = localStorage.getItem("nexwah_mouser_key") || "";
-  cfg.dkClientId   = localStorage.getItem("nexwah_dk_client_id") || "";
-  cfg.dkSecret     = localStorage.getItem("nexwah_dk_secret") || "";
+window.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const r = await fetch(APPS_SCRIPT_URL + "?action=getConfig");
+    const d = await r.json();
+    if (d.ok) {
+      cfg.mouserKey  = d.mouserKey  || "";
+      cfg.dkClientId = d.dkClientId || "";
+      cfg.dkSecret   = d.dkSecret   || "";
+    }
+  } catch(e) {}
   populateAllLocationDropdowns();
- loadSettingsPage();
- document.getElementById("topbarStatus").textContent = "Ready";
- sheetRead().then(() => {
-   populateAllLocationDropdowns();
-   renderLocations();
- }).catch(() => {});
+  loadSettingsPage();
+  document.getElementById("topbarStatus").textContent = "Ready";
+  sheetRead().then(() => {
+    populateAllLocationDropdowns();
+    renderLocations();
+  }).catch(() => {});
 })
 
-function skipApiKey() {
- cfg.anthropicKey=""; localStorage.setItem("nexwah_skip_api","true");
- document.getElementById("keyModal").style.display="none";
- document.getElementById("topbarStatus").textContent = "Ready";
- toast("Using free Tesseract OCR for scanning.");
-}
-function showKeyModal() { document.getElementById("keyModal").style.display="flex"; setTimeout(()=>document.getElementById("modalKeyInput").focus(),100); }
-function saveModalKey() {
- const val=document.getElementById("modalKeyInput").value.trim();
- if (!val.startsWith("sk-ant-")) { document.getElementById("modalError").style.display="block"; return; }
- cfg.anthropicKey=val; localStorage.setItem("nexwah_anthropic_key",val);
- document.getElementById("keyModal").style.display="none";
- document.getElementById("topbarStatus").textContent = "Ready";
- toast("API key saved. Welcome to NEXWAH Inventory!");
-}
+function skipApiKey() { document.getElementById("topbarStatus").textContent = "Ready"; toast("Using Kimi Vision via server for scanning."); }
+function showKeyModal() { toast("Label scanning handled via server — no key needed."); }
+function saveModalKey() {}
 
 // ── NAV ────────────────────────────────────────────────────
 function showPage(name, btn) {
@@ -1876,7 +1792,7 @@ function showPage(name, btn) {
  if (name==="settings") loadSettingsPage();
  if (name==="marketprice") {
    const noKeyWarn = document.getElementById('mpNoKeyWarn');
-   if (noKeyWarn) noKeyWarn.style.display = cfg.anthropicKey ? 'none' : 'block';
+   if (noKeyWarn) noKeyWarn.style.display = 'none';
    setTimeout(() => document.getElementById('mpSearchInput')?.focus(), 100);
  }
  if (name==="location") {
@@ -2366,11 +2282,9 @@ function scoreMPN(raw){const pn=raw.replace(/[^A-Z0-9\-\.\/]/g,"").toUpperCase()
 function extractMPNs(ocrText){const cleaned=ocrText.replace(/[^\x20-\x7E\n]/g,' ').replace(/\r\n/g,'\n').replace(/\r/g,'\n');const lines=cleaned.split('\n').map(l=>l.trim()).filter(Boolean);const found=new Map();const add=(raw,bonus=0,fromLabel=false)=>{const r=scoreMPN(raw);if(!r)return;r.score+=bonus;if(fromLabel){r.tier="HIGH";r.score+=60;}const ex=found.get(r.pn);if(!ex||r.score>ex.score)found.set(r.pn,r);};for(let i=0;i<lines.length;i++){const up=lines[i].toUpperCase();if(!MPN_LABEL_REGEX.test(up))continue;const afterLabel=up.replace(MPN_LABEL_REGEX,"").trim();if(afterLabel.length>=4){const firstToken=afterLabel.split(/\s+/)[0];add(firstToken,0,true);if(!afterLabel.includes(" "))add(afterLabel,0,true);}for(let offset=1;offset<=2;offset++){if(i+offset>=lines.length)break;const nextLine=lines[i+offset].toUpperCase().trim();if(MPN_LABEL_REGEX.test(nextLine))break;if(nextLine.length>=4&&nextLine.length<=32)nextLine.split(/\s+/).forEach(t=>add(t,0,offset===1));}}for(const line of lines){const m=line.match(/(?:MPN|P\/N|PART\s*NO?\.?|MODEL)\s*[:\-]\s*([A-Z0-9][A-Z0-9\-\.\/]{3,29})/i);if(m)add(m[1].toUpperCase(),20,true);}const hasHigh=[...found.values()].some(r=>r.tier==="HIGH");if(!hasHigh){for(const line of lines){const up=line.toUpperCase();if([...NOISE_STARTS].some(n=>up.startsWith(n)))continue;up.split(/[\s,;|()\[\]]+/).forEach(t=>{if(t.length>=4)add(t);});}}const tierOrder={HIGH:0,MED:1,LOW:2};return[...found.values()].sort((a,b)=>tierOrder[a.tier]-tierOrder[b.tier]||b.score-a.score).slice(0,6);}
 
 async function extractWithClaude(dataUrl){
- if(cfg.anthropicKey){
-   setCamStatus('<span class="spinner"></span>Reading label with Claude Vision…',"loading");
-   try{const result=await tryClaudeVision(dataUrl);if(result){await handleScanResult(result,dataUrl,"Claude Vision");return;}}
-   catch(err){setCamStatus('<span class="spinner"></span>Claude unavailable — trying Google Vision…',"warn");await new Promise(r=>setTimeout(r,600));}
- }
+ setCamStatus('<span class="spinner"></span>Reading label with Kimi Vision…',"loading");
+ try{const result=await tryClaudeVision(dataUrl);if(result){await handleScanResult(result,dataUrl,"Kimi Vision");return;}}
+ catch(err){setCamStatus('<span class="spinner"></span>Kimi Vision unavailable — trying Google Vision…',"warn");await new Promise(r=>setTimeout(r,600));}
  setCamStatus('<span class="spinner"></span>Trying Google Vision…',"loading");
  try{const result=await tryGoogleVision(dataUrl);if(result){await handleScanResult(result,dataUrl,"Google Vision");return;}}
  catch(err){setCamStatus('<span class="spinner"></span>Google Vision unavailable — trying Tesseract…',"warn");await new Promise(r=>setTimeout(r,600));}
@@ -2380,7 +2294,7 @@ async function extractWithClaude(dataUrl){
  catch(err){setCamStatus("OCR failed: "+err.message,"err");}
 }
 async function tryGoogleVision(dataUrl){const base64=dataUrl.split(",")[1];const resp=await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({requests:[{image:{content:base64},features:[{type:"TEXT_DETECTION",maxResults:1},{type:"DOCUMENT_TEXT_DETECTION",maxResults:1}],imageContext:{languageHints:["en","zh"]}}]})});const data=await resp.json();if(data.error)throw new Error(data.error.message);const response=data.responses[0];const fullText=(response.fullTextAnnotation&&response.fullTextAnnotation.text)||(response.textAnnotations&&response.textAnnotations[0]&&response.textAnnotations[0].description)||"";if(!fullText)return null;const candidates=extractMPNs(fullText);if(!candidates.length)return null;const top=candidates[0];let supplier="Unknown";if(fullText.toUpperCase().includes("DIGIKEY")||fullText.toUpperCase().includes("DIGI-KEY"))supplier="DigiKey";else if(fullText.toUpperCase().includes("MOUSER"))supplier="Mouser";return{mfrPartNumber:top.pn,supplierPartNumber:"",supplier,description:"",category:"Other"};}
-async function tryClaudeVision(dataUrl){const base64=dataUrl.split(",")[1];const prompt=`You are an electronics label reader. Return ONLY a raw JSON object, no markdown:\n{"mfrPartNumber":"manufacturer part number","supplierPartNumber":"supplier order PN","supplier":"DigiKey or Mouser or Octopart or Unknown","description":"component description if visible, else empty string","category":"one of: Resistor, Capacitor, Inductor, IC, Transistor, Diode, Connector, Crystal, LED, Relay, Fuse, Other"}\nSet mfrPartNumber to NOT_FOUND if not visible.`;const resp=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":cfg.anthropicKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:300,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:base64}},{type:"text",text:prompt}]}]})});const data=await resp.json();if(!resp.ok)throw new Error(data?.error?.message||"Claude API error");const raw=(data.content||[]).map(b=>b.text||"").join("").trim();const parsed=JSON.parse(raw.replace(/```json|```/g,"").trim());if(!parsed.mfrPartNumber||parsed.mfrPartNumber==="NOT_FOUND")return null;return parsed;}
+async function tryClaudeVision(dataUrl){const base64=dataUrl.split(",")[1];const prompt=`You are an electronics label reader. Return ONLY a raw JSON object, no markdown:\n{"mfrPartNumber":"manufacturer part number","supplierPartNumber":"supplier order PN","supplier":"DigiKey or Mouser or Octopart or Unknown","description":"component description if visible, else empty string","category":"one of: Resistor, Capacitor, Inductor, IC, Transistor, Diode, Connector, Crystal, LED, Relay, Fuse, Other"}\nSet mfrPartNumber to NOT_FOUND if not visible.`;const resp=await fetch(APPS_SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"visionScan",imageBase64:base64,prompt:prompt})});const data=await resp.json();if(!data.ok)throw new Error(data.error||"Vision scan failed");const raw=data.reply||"";const parsed=JSON.parse(raw.replace(/```json|```/g,"").trim());if(!parsed.mfrPartNumber||parsed.mfrPartNumber==="NOT_FOUND")return null;return parsed;}
 async function tryTesseract(dataUrl){if(!window.Tesseract){await new Promise((resolve,reject)=>{const script=document.createElement("script");script.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";script.onload=resolve;script.onerror=reject;document.head.appendChild(script);});}setCamStatus('<span class="spinner"></span>Tesseract OCR running…',"loading");const processedUrl=await preprocessImageForOCR(dataUrl);const worker=await Tesseract.createWorker("eng");await worker.setParameters({tessedit_pageseg_mode:"6",tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-/"});const{data:{text}}=await worker.recognize(processedUrl);await worker.terminate();const lines=text.toUpperCase().split("\n").map(l=>l.trim()).filter(l=>l.length>3);const fullText=lines.join(" ");const patterns=[/\b(\d{3}-\d{4,6}-\d-[A-Z]{2})\b/,/\b(\d{3}-[A-Z0-9]{6,})\b/,/\b([A-Z]{2,4}\d{2,}[A-Z0-9]{4,})\b/,/\b([A-Z]{2,}[0-9]{2,}[A-Z0-9]*[-][A-Z0-9]+)\b/,/\b([A-Z0-9]{6,})\b/];let bestMatch=null;for(const pattern of patterns){const m=fullText.match(pattern);if(m){bestMatch=m[1];break;}}if(!bestMatch)return null;let supplier="Unknown";if(fullText.includes("DIGIKEY")||fullText.includes("DIGI-KEY"))supplier="DigiKey";else if(fullText.includes("MOUSER"))supplier="Mouser";return{mfrPartNumber:bestMatch,supplierPartNumber:"",supplier,description:""};}
 async function preprocessImageForOCR(dataUrl){return new Promise(resolve=>{const img=new Image();img.onload=()=>{const canvas=document.createElement("canvas");canvas.width=img.width*2;canvas.height=img.height*2;const ctx=canvas.getContext("2d");ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(img,0,0,canvas.width,canvas.height);const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);const d=imageData.data;for(let i=0;i<d.length;i+=4){let gray=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];gray=gray>128?255:0;d[i]=d[i+1]=d[i+2]=gray;}ctx.putImageData(imageData,0,0);resolve(canvas.toDataURL("image/png"));};img.src=dataUrl;});}
 
@@ -2595,10 +2509,7 @@ function escapeHtmlScan(value){return String(value??"").replaceAll("&","&amp;").
 
 // ── SETTINGS ───────────────────────────────────────────────
 function loadSettingsPage() {
-  const hasKey=!!cfg.anthropicKey;
-  const keyInput=document.getElementById("settingsApiKey"), keyStatusEl=document.getElementById("apiKeyStatus"), statusEl=document.getElementById("settingsStatus");
-  if (keyInput) keyInput.value=hasKey?cfg.anthropicKey:"";
-  if (keyStatusEl) keyStatusEl.innerHTML=hasKey?`<div class="alert alert-success">API key saved. Claude Vision label scanning enabled.</div>`:`<div class="alert alert-warn">No API key set. Using free OCR (Google Vision &#x2192; Tesseract fallback).</div>`;
+  const statusEl=document.getElementById("settingsStatus");
   // Populate distributor key fields
   const mki=document.getElementById("settingsMouserKey"); if(mki) mki.value=cfg.mouserKey||"";
   const dki=document.getElementById("settingsDkClientId"); if(dki) dki.value=cfg.dkClientId||"";
@@ -2613,30 +2524,45 @@ function loadSettingsPage() {
   }
   setBadge("mouserKeyBadge", !!cfg.mouserKey);
   setBadge("digikeyKeyBadge", !!(cfg.dkClientId && cfg.dkSecret));
-  if (statusEl) statusEl.innerHTML=`Anthropic Key: <b>${hasKey?"Saved":"Not set"}</b><br>Mouser API: <b>${cfg.mouserKey?"Saved":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Saved":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
+  if (statusEl) statusEl.innerHTML=`Label Scanning: <b>Kimi Vision (server)</b><br>Mouser API: <b>${cfg.mouserKey?"Saved":"Not set"}</b><br>DigiKey API: <b>${(cfg.dkClientId&&cfg.dkSecret)?"Saved":"Not set"}</b><br>Sheet: <b>${cfg.sheetName||"Sheet1"}</b>`;
 }
-function saveSettingsKey(){const val=document.getElementById("settingsApiKey").value.trim();const msgEl=document.getElementById("settingsKeyMsg");if(!val.startsWith("sk-ant-")){msgEl.style.display="block";msgEl.innerHTML="Key must start with sk-ant-";msgEl.className="status-bar err";return;}cfg.anthropicKey=val;localStorage.setItem("nexwah_anthropic_key",val);msgEl.style.display="block";msgEl.innerHTML="Key saved.";msgEl.className="status-bar ok";toast("API key saved.");loadSettingsPage();}
-function removeSettingsKey(){cfg.anthropicKey="";localStorage.removeItem("nexwah_anthropic_key");document.getElementById("settingsApiKey").value="";const msgEl=document.getElementById("settingsKeyMsg");msgEl.style.display="block";msgEl.innerHTML="Key removed.";msgEl.className="status-bar warn";toast("API key removed.");loadSettingsPage();}
-function saveDistKey(dist) {
+function saveSettingsKey(){}
+function removeSettingsKey(){}
+async function saveDistKey(dist) {
   const msgEl=document.getElementById("distKeyMsg"); msgEl.style.display="block";
+  msgEl.innerHTML='<span class="spinner"></span>Saving…'; msgEl.className="status-bar loading";
+  let payload = {};
   if (dist==="mouser") {
     const val=document.getElementById("settingsMouserKey").value.trim();
     if (!val) { msgEl.innerHTML="Enter a Mouser API key."; msgEl.className="status-bar err"; return; }
-    cfg.mouserKey=val; localStorage.setItem("nexwah_mouser_key",val);
-    msgEl.innerHTML="Mouser key saved."; msgEl.className="status-bar ok"; toast("Mouser API key saved.");
+    cfg.mouserKey=val; payload={mouserKey:val};
   } else if (dist==="digikey") {
     const id=document.getElementById("settingsDkClientId").value.trim(), sec=document.getElementById("settingsDkSecret").value.trim();
     if (!id||!sec) { msgEl.innerHTML="Enter both Client ID and Client Secret."; msgEl.className="status-bar err"; return; }
-    cfg.dkClientId=id; cfg.dkSecret=sec;
-    localStorage.setItem("nexwah_dk_client_id",id); localStorage.setItem("nexwah_dk_secret",sec);
-    msgEl.innerHTML="DigiKey credentials saved."; msgEl.className="status-bar ok"; toast("DigiKey credentials saved.");
+    cfg.dkClientId=id; cfg.dkSecret=sec; payload={dkClientId:id,dkSecret:sec};
   }
+  try {
+    const r=await fetch(APPS_SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveConfig",...payload})});
+    const d=await r.json();
+    if (!d.ok) throw new Error(d.error||"Save failed");
+    msgEl.innerHTML=dist==="mouser"?"Mouser key saved.":"DigiKey credentials saved."; msgEl.className="status-bar ok";
+    toast(dist==="mouser"?"Mouser API key saved.":"DigiKey credentials saved.");
+  } catch(e) { msgEl.innerHTML="Save failed: "+e.message; msgEl.className="status-bar err"; }
   loadSettingsPage();
 }
-function removeDistKey(dist) {
+async function removeDistKey(dist) {
   const msgEl=document.getElementById("distKeyMsg"); msgEl.style.display="block";
-  if (dist==="mouser") { cfg.mouserKey=""; localStorage.removeItem("nexwah_mouser_key"); document.getElementById("settingsMouserKey").value=""; msgEl.innerHTML="Mouser key removed."; msgEl.className="status-bar warn"; toast("Mouser key removed."); }
-  else if (dist==="digikey") { cfg.dkClientId=""; cfg.dkSecret=""; localStorage.removeItem("nexwah_dk_client_id"); localStorage.removeItem("nexwah_dk_secret"); document.getElementById("settingsDkClientId").value=""; document.getElementById("settingsDkSecret").value=""; msgEl.innerHTML="DigiKey credentials removed."; msgEl.className="status-bar warn"; toast("DigiKey credentials removed."); }
+  msgEl.innerHTML='<span class="spinner"></span>Removing…'; msgEl.className="status-bar loading";
+  let payload = {};
+  if (dist==="mouser") { cfg.mouserKey=""; document.getElementById("settingsMouserKey").value=""; payload={mouserKey:""}; }
+  else if (dist==="digikey") { cfg.dkClientId=""; cfg.dkSecret=""; document.getElementById("settingsDkClientId").value=""; document.getElementById("settingsDkSecret").value=""; payload={dkClientId:"",dkSecret:""}; }
+  try {
+    const r=await fetch(APPS_SCRIPT_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action:"saveConfig",...payload})});
+    const d=await r.json();
+    if (!d.ok) throw new Error(d.error||"Remove failed");
+    msgEl.innerHTML=dist==="mouser"?"Mouser key removed.":"DigiKey credentials removed."; msgEl.className="status-bar warn";
+    toast(dist==="mouser"?"Mouser key removed.":"DigiKey credentials removed.");
+  } catch(e) { msgEl.innerHTML="Remove failed: "+e.message; msgEl.className="status-bar err"; }
   loadSettingsPage();
 }
 
@@ -3218,7 +3144,7 @@ async function fetchBomPartPrice(partNumber, idx) {
   const noKeys = !cfg.mouserKey && !cfg.dkClientId;
   if (!results.length) {
     priceCell.innerHTML = noKeys
-      ? `<span style="font-size:11px;color:var(--muted)">Set API keys in Settings</span>`
+      ? `<span style="font-size:11px;color:var(--muted)">API keys not configured</span>`
       : `<span style="font-size:11px;color:var(--muted)">No price / out of stock</span>`;
     orderCell.innerHTML = `<a href="https://www.digikey.com/en/products/result?keywords=${encodeURIComponent(partNumber)}" target="_blank" rel="noopener" style="display:inline-block;padding:5px 12px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:7px;font-size:12px;font-weight:600;text-decoration:none;font-family:var(--sans)">Search ↗</a>`;
     return;
