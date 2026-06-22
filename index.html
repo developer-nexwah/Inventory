@@ -720,6 +720,11 @@
  </div>
  <div class="loc-modal-body">
  <div class="cap-edit-row">
+   <label>Location Name</label>
+   <input type="text" id="nameInput" placeholder="Enter location name" style="flex:1" />
+   <button class="btn btn-primary btn-sm" onclick="applyLocationName()">Save</button>
+ </div>
+ <div class="cap-edit-row">
    <label>Box Capacity</label>
    <input type="number" id="capInput" min="1" value="100" onkeydown="if(event.key==='Enter') applyCapacity()" />
    <button class="btn btn-primary btn-sm" onclick="applyCapacity()">Apply</button>
@@ -729,9 +734,12 @@
    Slot Map &nbsp;&middot;&nbsp; <span style="color:var(--accent)">&#9632;</span> Next &nbsp;<span style="color:var(--success)">&#9632;</span> Used &nbsp;<span style="color:#d97706">&#9632;</span> Over capacity
  </div>
  <div class="slot-grid" id="locDetailSlots"></div>
- <div style="display:flex;gap:10px;justify-content:flex-end">
-   <button class="btn btn-primary btn-sm" onclick="closeLocDetail();openAddComponentModal()">+ Add Component Here</button>
-   <button class="btn btn-secondary btn-sm" onclick="closeLocDetail()">Close</button>
+ <div style="display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap">
+   <button class="btn btn-danger btn-sm" onclick="deleteLocation()">Delete Location</button>
+   <div style="display:flex;gap:10px">
+     <button class="btn btn-primary btn-sm" onclick="closeLocDetail();openAddComponentModal()">+ Add Component</button>
+     <button class="btn btn-secondary btn-sm" onclick="closeLocDetail()">Close</button>
+   </div>
  </div>
  </div>
  </div>
@@ -1270,63 +1278,8 @@ function bxRange(start, end, names = {}) {
   return arr;
 }
 
-const PB_NAMES = {
-  PB0:'TEST',
-  PB1:'IC PMIC', PB2:'IC PMIC', PB3:'IC PMIC',
-  PB4:'IC LOGIC', PB5:'SWITCH INTERFACE', PB6:'IC WIRELESS RF',
-  PB7:'SMT INDUCTOR FERRITE FUSE', PB8:'IC INTERFACE', PB9:'IC ANALOG AMPLIFIER',
-  PB10:'CLK TIMER', PB11:'CAP1206 CAP1210', PB12:'CAP0805', PB13:'CAP0603', PB14:'CAP0402',
-  PB15:'RES0805', PB16:'RES1206', PB17:'RES0805 RES0402', PB18:'RES0603 RES1206',
-  PB19:'RES0603 RES1210', PB20:'RES0402 RES0201', PB21:'RES1206', PB22:'RES0402',
-  PB23:'CAP0603', PB24:'RES0603', PB25:'IC MOSFET RF', PB26:'IC MOSFET DIODE',
-  PB27:'IC TRANSISTOR', PB28:'VARISTOR', PB29:'', PB30:'XTAL', PB31:'Inductor',
-  PB32:'CAP TANT CASE C D', PB33:'', PB34:'', PB35:'SENSORS', PB36:'', PB37:'', PB38:'',
-  PB39:'CAPTH', PB40:'', PB41:'', PB42:'', PB43:'', PB44:'Module', PB45:'DIODE',
-  PB46:'Diode', PB47:'', PB48:'RES0402 RES1206', PB49:'', PB50:'', PB51:'DIODE',
-  PB52:'DIODE', PB53:'', PB54:'RESTH', PB55:'RESTH', PB56:'LED', PB57:'',
-  PB58:'按键开关', PB59:'', PB60:'针座连接器', PB61:'CONNECTOR 连接器', PB62:'SWITCH 开关',
-  PB63:'TEST POINT PROBE 测试点', PB64:'Radial Capacitor', PB65:'Microcontrollers MCU',
-  PB66:'', PB67:'Antenna', PB68:'', PB69:'', PB70:'', PB71:'', PB72:''
-};
 
-const LOCATIONS = [
-  ...Array.from({ length: 73 }, (_, i) => makeLoc('PB' + i, PB_NAMES['PB' + i] || '', 'PB')),
-  ...locRange('T', 1, 20, { T01:'USB', T02:'简易牛角座排线插座', T03:'连接器插头牛角座', T05:'排母 连接器' }),
-  ...locRange('LB', 1, 36),
-  ...locRange('DR', 1, 12, { DR03:'Module 模块', DR04:'EVK TOOLS', DR06:'CONNECTOR 连接器', DR07:'MISC' }),
-  ...locRange('PD', 1, 10, { PD09:'PCB板' }),
-  ...locRange('SD', 1, 10, { SD01:'12mm Wide Tape 超宽料盘', SD02:'电池', SD03:'白座', SD04:'电池' }),
-  ...bxRange(0, 20, {
-    BX00:'PCBA', BX01:'INTERFACE BOARD NW729267900C', BX02:'S3 MAIN BOARD BX02-01, 02, 03',
-    BX03:'PCB', BX04:'', BX05:'NW100814580 NW100814559', BX06:'SG736823600A SG739770300A',
-    BX07:'', BX08:'100749964 - 100749962', BX09:'', BX10:'INFINEON', BX11:'Tube 料管',
-    BX14:'NOT IN USE', BX18:'', BX19:'', BX20:''
-  }),
-  ...locRange('CN', 1, 8, {
-    CN01:'Sample', CN02:'Sample', CN03:'Tester', CN04:'Tester',
-    CN05:'Tester', CN06:'Tester', CN07:'Tester & Sample', CN08:'Tester & Sample'
-  }),
-  ...locRange('SF', 1, 16, {
-    SF01:'Terminal Block 接线端子 TB', SF02:'Cable assembly', SF03:'Element',
-    SF04:'Nexwah Product, Module', SF08:'PROJECT', SF09:'Heatsink', SF11:'WT Elec', SF16:''
-  }),
-  makeLoc('CB01', 'TOOLS', 'CB'), makeLoc('ST', '', 'ST'), makeLoc('ST01', '', 'ST'),
-  makeLoc('K1', '双排母', 'K'), makeLoc('M', 'M1', 'M'), makeLoc('C01', 'Carousel Items', 'C'),
-  makeLoc('BC01', 'Glass Display, Bottom Cabinet Near Entrance Door', 'BC'),
-  makeLoc('BC01-01', 'Display Glass, Bottom Cabinet Near Entrance Door', 'BC'),
-  makeLoc('PCB', 'Printed Circuit Board', 'PCB'), makeLoc('PCB Board', '', 'PCB'),
-  ...Array.from({length:10},(_,i)=>makeLoc('TR'+(i+1), ['电阻料盘 RES0603','电容料盘','芯片料盘','RES0402','CHIP','芯片料盘','','','',''][i]||'','TR')),
-  makeLoc('TRBX01', 'CAP0402', 'TRBX'), makeLoc('BX-TRCAP0402-01', 'CAP0402', 'BX'),
-  makeLoc('STENCIL', 'Stencil 钢网', 'STENCIL'),
-  makeLoc('SOLDERING STATION', 'Solder Wire', 'SOLDERING'),
-  makeLoc('DISPLAY GLASS', 'Bottom Cabinet Near Entrance Door', 'DISPLAY'),
-  makeLoc('SM_DOOR', 'LOCKED ROOM', 'ROOM'), makeLoc('LOCKED ROOM', '', 'ROOM'),
-  makeLoc('WAREHOUSE', 'See photo', 'WAREHOUSE'), makeLoc('CASING', '01', 'CASING'),
-  makeLoc('CASINGS', 'Glass Display, bottom left cabinet', 'CASING'),
-  makeLoc('ORANGE MINI DRAWER', '橘色小抽屉 · Silicone Gel: 7868-D', 'DRAWER'),
-  makeLoc('ORANGE DRAWER', '橘色小抽屉 · 7921-5', 'DRAWER'),
-  makeLoc('TOYOGO CABINET', 'Meeting Room Door Front · Plastic Drawer', 'DRAWER')
-];
+const LOCATIONS = [];
 
 const TYPE_SUGGESTIONS = {
  'RES0603':['PB18','PB19','PB24'], 'RES0402':['PB20','PB22','PB17'],
@@ -1501,13 +1454,46 @@ function confirmNewBox() {
   const statusEl = document.getElementById('newBoxStatus');
   if (!id) { statusEl.style.display='block'; statusEl.innerHTML='Enter a Box ID.'; statusEl.className='status-bar err'; return; }
   if (LOCATIONS.find(l => l.id === id)) { statusEl.style.display='block'; statusEl.innerHTML=`"${id}" already exists.`; statusEl.className='status-bar err'; return; }
-  LOCATIONS.push(makeLoc(id, name));
-  locSlots[id] = [];
-  locCapacity[id] = cap;
-  populateAllLocationDropdowns();
-  renderLocations();
-  toast(`Created: ${id}${name ? ' · ' + name : ''}`);
-  closeNewBoxModal();
+  
+  statusEl.style.display='block';
+  statusEl.innerHTML='<span class="spinner"></span>Saving…';
+  statusEl.className='status-bar loading';
+  
+  saveNewLocation(id, name, cap, statusEl);
+}
+
+async function saveNewLocation(id, name, cap, statusEl) {
+  try {
+    const row = [id, name, '', cap, ''];
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action: 'append',
+        sheet: 'Locations',
+        row: row
+      })
+    });
+    const text = await resp.text();
+    const result = JSON.parse(text);
+    if (result.ok) {
+      LOCATIONS.push(makeLoc(id, name));
+      locSlots[id] = [];
+      locCapacity[id] = cap;
+      populateAllLocationDropdowns();
+      renderLocations();
+      statusEl.innerHTML='Created: ' + id + (name ? ' · ' + name : '');
+      statusEl.className='status-bar ok';
+      toast('Created: ' + id + (name ? ' · ' + name : ''));
+      closeNewBoxModal();
+    } else {
+      statusEl.innerHTML='Save failed: ' + (result.error || text);
+      statusEl.className='status-bar err';
+    }
+  } catch(e) {
+    statusEl.innerHTML='Error: ' + e.message;
+    statusEl.className='status-bar err';
+  }
 }
 
 function normalizeLocText(value) { return String(value || '').toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, ''); }
@@ -1561,11 +1547,102 @@ function openLocDetail(locId) {
   const cap = getCapacity(locId), used = usedCount(locId);
   document.getElementById('locDetailTitle').textContent = locId + (loc.name ? ' · ' + loc.name : '');
   document.getElementById('locDetailSubtitle').textContent = used + ' slots used';
+  document.getElementById('nameInput').value = loc.name || '';
   document.getElementById('capInput').value = cap;
   document.getElementById('capHint').textContent = used + ' used · next: ' + slotLabel(locId, getNextSlot(locId));
   _renderDetailSlots(locId);
   document.getElementById('locDetailOverlay').classList.add('open');
 }
+
+function applyLocationName() {
+  const locId = _detailLocId;
+  if (!locId) return;
+  const newName = document.getElementById('nameInput').value.trim();
+  const loc = LOCATIONS.find(l => l.id === locId);
+  if (!loc) return;
+  
+  loc.name = newName;
+  document.getElementById('locDetailTitle').textContent = locId + (newName ? ' · ' + newName : '');
+  
+  updateLocationNameInSheet(locId, newName).then(() => {
+    populateAllLocationDropdowns();
+    renderLocations();
+    toast('Location name updated');
+  }).catch(e => {
+    toast('Error updating: ' + e.message);
+  });
+}
+
+function deleteLocation() {
+  const locId = _detailLocId;
+  if (!locId) return;
+  
+  if (!confirm('Delete location ' + locId + '? This cannot be undone.')) return;
+  
+  deleteLocationFromSheet(locId).then(() => {
+    const idx = LOCATIONS.findIndex(l => l.id === locId);
+    if (idx >= 0) LOCATIONS.splice(idx, 1);
+    delete locSlots[locId];
+    delete locCapacity[locId];
+    
+    closeLocDetail();
+    populateAllLocationDropdowns();
+    renderLocations();
+    toast('Deleted: ' + locId);
+  }).catch(e => {
+    toast('Error deleting: ' + e.message);
+  });
+}
+
+async function updateLocationNameInSheet(locId, newName) {
+  try {
+    const rows = await fetch(APPS_SCRIPT_URL + '?action=read&sheet=Locations').then(r => r.json());
+    let rowIdx = -1;
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0] || '').trim() === locId) {
+        rowIdx = i + 1;
+        break;
+      }
+    }
+    if (rowIdx < 0) throw new Error('Location not found');
+
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action: 'update',
+        sheet: 'Locations',
+        rowIndex: rowIdx,
+        values: { 1: newName }
+      })
+    });
+    const text = await resp.text();
+    const result = JSON.parse(text);
+    if (!result.ok) throw new Error(result.error || text);
+  } catch(e) {
+    throw e;
+  }
+}
+
+async function deleteLocationFromSheet(locId) {
+  try {
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action: 'deleteRow',
+        sheet: 'Locations',
+        locationId: locId
+      })
+    });
+    const text = await resp.text();
+    const result = JSON.parse(text);
+    if (!result.ok) throw new Error(result.error || text);
+  } catch(e) {
+    throw e;
+  }
+}
+
 function applyCapacity() {
   const locId = _detailLocId; if (!locId) return;
   const num = parseInt(document.getElementById('capInput').value);
@@ -1755,6 +1832,34 @@ function confirmColMapping() {
  cb(confirmedMapping,parsedRows);
 }
 
+async function loadCustomLocations() {
+  try {
+    const url = APPS_SCRIPT_URL + '?action=read&sheet=Locations';
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (!Array.isArray(data) || data.length < 2) return;
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const id = String(row[0] || '').trim();
+      const category = String(row[1] || '').trim();
+      const cap = parseInt(row[3]) || 100;
+
+      if (!id) continue;
+      if (LOCATIONS.find(l => l.id === id)) continue;
+
+      LOCATIONS.push(makeLoc(id, category));
+      locSlots[id] = [];
+      locCapacity[id] = cap;
+    }
+
+    populateAllLocationDropdowns();
+    renderLocations();
+  } catch(e) {
+    console.log('Failed to load locations from sheet:', e.message);
+  }
+}
+
 // ── INIT ───────────────────────────────────────────────────
 window.addEventListener("DOMContentLoaded", async () => {
   try {
@@ -1769,6 +1874,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   populateAllLocationDropdowns();
   loadSettingsPage();
   document.getElementById("topbarStatus").textContent = "Ready";
+  loadCustomLocations().catch(() => {});
   sheetRead().then(() => {
     populateAllLocationDropdowns();
     renderLocations();
