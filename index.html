@@ -1512,6 +1512,15 @@ function renderLocations() {
    const matchSearch = !search || normalizeLocText(l.id).includes(search) || normalizeLocText(l.name).includes(search);
    return matchFilter && matchSearch;
  });
+ filtered.sort((a, b) => {
+   const parseId = id => {
+     const m = id.match(/^([A-Za-z]+)(\d+)$/);
+     return m ? { prefix: m[1].toUpperCase(), num: parseInt(m[2], 10) } : { prefix: id, num: 0 };
+   };
+   const pa = parseId(a.id), pb = parseId(b.id);
+   if (pa.prefix !== pb.prefix) return pa.prefix.localeCompare(pb.prefix);
+   return pa.num - pb.num;
+ });
  grid.innerHTML = '';
  if (!filtered.length) { grid.innerHTML = '<div class="loc-empty-state">No locations match your search.</div>'; return; }
  filtered.forEach(loc => {
