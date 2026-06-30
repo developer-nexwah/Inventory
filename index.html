@@ -2744,7 +2744,7 @@ async function runBomCheck(mapping,rows){
   document.getElementById("bomExportPanel").style.display="none";
   document.getElementById("bomResults").innerHTML="";
   _bomOriginalRows=rows; _bomOriginalHeaders=rows.length?Object.keys(rows[0]):[]; _bomOriginalMapping=mapping;
-  const items=rows.map(r=>{const qty=parseInt(r[mapping.Quantity])||0;const sets=mapping.Sets?(Math.max(1,parseInt(r[mapping.Sets])||1)):1;const mfrPn=mapping.MfrPN?String(r[mapping.MfrPN]||"").trim():"";const nexwahPn=mapping.NexwahPN?String(r[mapping.NexwahPN]||"").trim():"";const pn=nexwahPn||mfrPn;return{pn,mfrPn,nexwahPn,qty:sets>1?qty*sets:qty,qtyPerSet:qty,sets,_row:r,_mappedRow:r};}).filter(i=>i.pn&&i.qty>0);
+  const items=rows.map(r=>{const qty=parseInt(r[mapping.Quantity])||0;const setsRaw=mapping.Sets?(parseInt(r[mapping.Sets])||0):0;const isPreMultiplied=setsRaw>=qty&&qty>0;const sets=setsRaw>0?setsRaw:1;const needed=isPreMultiplied?setsRaw:(sets>1?qty*sets:qty);const mfrPn=mapping.MfrPN?String(r[mapping.MfrPN]||"").trim():"";const nexwahPn=mapping.NexwahPN?String(r[mapping.NexwahPN]||"").trim():"";const pn=nexwahPn||mfrPn;return{pn,mfrPn,nexwahPn,qty:needed,qtyPerSet:qty,sets,_row:r,_mappedRow:r};}).filter(i=>i.pn&&i.qty>0);
   const setsUsed=mapping.Sets&&items.some(i=>i.sets>1);
   try{
     const sheetRows=await sheetRead(),inv={},invByLoc={};
