@@ -443,6 +443,7 @@
  <div style="font-size:16px;font-weight:700;color:var(--text)">Location Manager</div>
  </div>
  <div style="display:flex;gap:8px;flex-wrap:wrap">
+   <button class="btn btn-secondary" onclick="fixPaddedLocationIds()">Fix Zero-Padded IDs</button>
    <button class="btn btn-secondary" onclick="openNewBoxModal()">+ New Location</button>
    <button class="btn btn-primary" onclick="openAddComponentModal()">+ Add Component to Location</button>
  </div>
@@ -1306,7 +1307,7 @@ function getCapacity(locId) { return locCapacity[locId] || 100; }
 function isFullSlotLabel(value) { return /^[A-Za-z0-9]+-\d+$/.test(String(value||'').trim()); }
 function getBaseLocationId(value) {
   const base = String(value||'').trim().replace(/-\d+$/, '').toUpperCase();
-  return base.replace(/^(TR)(0+)([1-9]\d*)$/, '$1$3');
+  return base.replace(/^([A-Za-z]+)(0+)([1-9]\d*)$/, '$1$3');
 }
 function normalizeNexwahPn(value) {
   // Strip leading zeros from both location prefix and slot number for ANY prefix
@@ -1514,7 +1515,7 @@ function renderLocations() {
  });
  filtered.sort((a, b) => {
    const parseId = id => {
-     const m = id.match(/^([A-Za-z]+)(\d+)$/);
+     const m = id.match(/^([A-Za-z]+)-?(\d+)$/);
      return m ? { prefix: m[1].toUpperCase(), num: parseInt(m[2], 10) } : { prefix: id, num: 0 };
    };
    const pa = parseId(a.id), pb = parseId(b.id);
@@ -1652,7 +1653,100 @@ async function deleteLocationFromSheet(locId) {
   }
 }
 
-function applyCapacity() {
+async function saveCapacityToSheet(locId, cap) {
+  const rows = await fetch(APPS_SCRIPT_URL + '?action=read&sheet=Locations').then(r => r.json());
+  let rowIdx = -1;
+  if (Array.isArray(rows)) {
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0] || '').trim() === locId) { rowIdx = i + 1; break; }
+    }
+  }
+  if (rowIdx > 0) {
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action: 'update', sheet: 'Locations', rowIndex: rowIdx, values: { 3: cap } })
+    });
+    const result = JSON.parse(await resp.text());
+    if (!result.ok) throw new Error(result.error || 'Update failed');
+  } else {
+    // No row for this location yet (e.g. a built-in default location) — create one.
+    const loc = LOCATIONS.find(l => l.id === locId);
+    const row = [locId, loc ? (loc.category || '') : '', '', cap, ''];
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action: 'append', sheet: 'Locations', row: row })
+    });
+    const result = JSON.parse(await resp.text());
+    if (!result.ok) throw new Error(result.error || 'Save failed');
+  }
+}
+
+async function renameLocationEverywhere(oldId, newId) {
+  // 1. Update any inventory rows pointing at this location.
+  const rows = await sheetRead();
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const rowIdx = i + 1;
+    const col5 = String(r[5] || '').trim();
+    const rowSerial = getSheetRowSerial(r);
+    if (col5 && getBaseLocationId(col5) === oldId) {
+      await sheetUpdateLocation(rowIdx, col5.toUpperCase().replace(new RegExp('^' + oldId, 'i'), newId));
+    }
+    if (rowSerial && getBaseLocationId(rowSerial) === oldId) {
+      await sheetUpdateRowSerial(rowIdx, rowSerial.toUpperCase().replace(new RegExp('^' + oldId, 'i'), newId));
+    }
+  }
+  // 2. Update the Locations sheet row itself.
+  const locRows = await fetch(APPS_SCRIPT_URL + '?action=read&sheet=Locations').then(r => r.json());
+  let locRowIdx = -1;
+  if (Array.isArray(locRows)) {
+    for (let i = 1; i < locRows.length; i++) {
+      if (String(locRows[i][0] || '').trim() === oldId) { locRowIdx = i + 1; break; }
+    }
+  }
+  if (locRowIdx > 0) {
+    const resp = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({ action: 'update', sheet: 'Locations', rowIndex: locRowIdx, values: { 0: newId } })
+    });
+    const result = JSON.parse(await resp.text());
+    if (!result.ok) throw new Error(result.error || 'Locations rename failed');
+  }
+  // 3. Update in-memory state so the UI reflects it immediately.
+  const loc = LOCATIONS.find(l => l.id === oldId);
+  if (loc) loc.id = newId;
+  if (locSlots[oldId]) { locSlots[newId] = locSlots[oldId]; delete locSlots[oldId]; }
+  if (locCapacity[oldId] != null) { locCapacity[newId] = locCapacity[oldId]; delete locCapacity[oldId]; }
+}
+
+async function fixPaddedLocationIds() {
+  const pairs = LOCATIONS.map(l => {
+    const m = l.id.match(/^([A-Za-z]+)(0+)([1-9]\d*)$/);
+    return m ? { oldId: l.id, newId: m[1].toUpperCase() + m[3] } : null;
+  }).filter(Boolean);
+  const dupes = pairs.filter(p => LOCATIONS.find(l => l.id === p.newId));
+  const toRename = pairs.filter(p => !LOCATIONS.find(l => l.id === p.newId));
+  if (!pairs.length) { toast('No zero-padded location IDs found'); return; }
+  if (dupes.length) toast('Skipping ' + dupes.map(d => d.oldId).join(', ') + ' — target ID already exists');
+  if (!toRename.length) return;
+  toast('Fixing ' + toRename.length + ' location ID(s)…');
+  for (const { oldId, newId } of toRename) {
+    try {
+      await renameLocationEverywhere(oldId, newId);
+      toast('Renamed ' + oldId + ' → ' + newId);
+    } catch (e) {
+      toast('Failed to rename ' + oldId + ': ' + e.message);
+    }
+  }
+  try { await sheetRead(); } catch (e) {}
+  populateAllLocationDropdowns();
+  renderLocations();
+}
+
+async function applyCapacity() {
   const locId = _detailLocId; if (!locId) return;
   const num = parseInt(document.getElementById('capInput').value);
   if (isNaN(num) || num < 1) { toast('Enter a valid number greater than 0'); return; }
@@ -1663,7 +1757,13 @@ function applyCapacity() {
   _renderDetailSlots(locId);
   populateAllLocationDropdowns();
   renderLocations();
-  toast(locId + ' capacity set to ' + num);
+  toast('Saving ' + locId + ' capacity…');
+  try {
+    await saveCapacityToSheet(locId, num);
+    toast(locId + ' capacity set to ' + num);
+  } catch (e) {
+    toast('Saved locally, but sheet save failed: ' + e.message);
+  }
 }
 function _renderDetailSlots(locId) {
   const container = document.getElementById('locDetailSlots');
